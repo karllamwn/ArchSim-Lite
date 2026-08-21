@@ -1,0 +1,22 @@
+# ─── Local environment / secrets ───
+.env
+.env.local
+*.key
+secrets.json
+
+# ─── Claude Code workspace ───
+.claude/
+CLAUDE.md
+
+# ─── Editor / OS ───
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*~
+
+# ─── Python cache (from the local http.server) ───
+__pycache__/
+*.py[cod]
