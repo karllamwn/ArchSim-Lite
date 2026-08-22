@@ -23,18 +23,18 @@ export function initCharts(container) {
   container.innerHTML = '';
   container.className = 'charts';
 
-  const radarBox = panel(container, 'Now');
-  const evolutionBox = panel(container, 'Convergence', true);
+  const evolutionBox = panel(container, 'Score by round');
+  const radarBox = panel(container, 'Where it stands now');
 
   subscribeHistory(rounds => {
-    radarBox.body.replaceChildren(drawRadar(rounds));
     evolutionBox.body.replaceChildren(drawEvolution(rounds));
+    radarBox.body.replaceChildren(drawRadar(rounds));
   });
 }
 
-function panel(parent, title, wide = false) {
+function panel(parent, title) {
   const box = document.createElement('div');
-  box.className = 'chart' + (wide ? ' chart-wide' : '');
+  box.className = 'chart';
 
   const heading = document.createElement('h3');
   heading.textContent = title;
@@ -51,10 +51,10 @@ function panel(parent, title, wide = false) {
 // ── Radar ────────────────────────────────────────────────────────────────────
 
 function drawRadar(rounds) {
-  const size = 150;
+  const size = 190;
   const cx = size / 2;
-  const cy = size / 2 + 4;
-  const radius = size / 2 - 26;
+  const cy = size / 2 + 2;
+  const radius = size / 2 - 34;
 
   const svg = el('svg', { viewBox: `0 0 ${size} ${size}`, class: 'chart-svg' });
 
@@ -143,9 +143,9 @@ function pointOn(cx, cy, radius, i, sides) {
 // ── Evolution ────────────────────────────────────────────────────────────────
 
 function drawEvolution(rounds) {
-  const width = 420;
-  const height = 150;
-  const pad = { left: 26, right: 10, top: 12, bottom: 20 };
+  const width = 300;
+  const height = 130;
+  const pad = { left: 24, right: 8, top: 10, bottom: 18 };
 
   const svg = el('svg', { viewBox: `0 0 ${width} ${height}`, class: 'chart-svg' });
 

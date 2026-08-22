@@ -64,12 +64,21 @@ function buildKeySection(container) {
 }
 
 function refreshMode() {
-  if (hasApiKey()) {
+  const live = hasApiKey();
+
+  if (live) {
     modeNote.innerHTML = '<b>Live mode.</b> Agents write their own arguments. '
       + 'The key stays in this browser.';
   } else {
     modeNote.innerHTML = '<b>Demo mode.</b> The tools run for real, so every number '
       + 'is genuine — only the wording is pre-written. Add a key for live agents.';
+  }
+
+  // Mirror it in the top bar, where it is visible from across a room.
+  const chip = document.getElementById('modeChip');
+  if (chip) {
+    chip.textContent = live ? 'live' : 'demo';
+    chip.classList.toggle('live', live);
   }
 }
 
@@ -106,6 +115,9 @@ async function startRound() {
   quiet();
   runButton.disabled = false;
   runButton.textContent = 'Run another round';
+
+  const roundChip = document.getElementById('roundChip');
+  if (roundChip) roundChip.textContent = `round ${currentRound()}`;
 }
 
 // ── Conversation items ───────────────────────────────────────────────────────
