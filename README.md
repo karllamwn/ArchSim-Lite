@@ -41,6 +41,11 @@ where shadows fall. Build tall and the Environmental agent objects. Build wide
 and the Architect objects. There is no setting that pleases everyone, which is
 the point: you have to decide, and the decision log records why.
 
+The site sits in a block of existing buildings, and some of them shade the park
+too. The shadow tool therefore reports two numbers: how much of the park is dark
+altogether, and how much of that **this project** put there. The agents argue
+about the second one. You cannot be asked to fix a shadow you did not cast.
+
 **Agents never calculate.** Every number an agent says comes out of its tool, a
 plain JavaScript function with no language model anywhere near it. The model
 reads those numbers, argues about them, and proposes a change. You accept or
@@ -48,6 +53,11 @@ reject it. Nothing changes the design except you.
 
 Press **Run** in the Tools panel to call any tool by hand and see the raw
 numbers. They exist whether or not the agents do.
+
+The consultants are not rows in a chat log. They stand at desks in the
+Multi-Agents Design Lab, and when one speaks it steps forward and says its line.
+There are six desks: three are taken, three are waiting for the agents you
+write.
 
 ---
 

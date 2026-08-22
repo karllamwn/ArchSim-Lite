@@ -26,7 +26,10 @@ export function surveyScore(state, shadowResult, survey) {
 
   // The measured value behind each concern, in the concern's own units.
   const measured = {
-    parkShadow: shadowResult.worst ? shadowResult.worst.shadowedPercent : 0,
+    // The community reacts to what the project adds, not to shadow the existing
+    // blocks already cast. Same basis as the environmental agent, so the two
+    // are arguing about the same number.
+    parkShadow: shadowResult.worst ? shadowResult.worst.addedByDesignPercent : 0,
     height: round(tallest),
     bulk: round(coverage)
   };

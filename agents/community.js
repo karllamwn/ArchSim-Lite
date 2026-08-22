@@ -37,9 +37,9 @@ export const communityAgent = {
         label: 'Shadow on the park',
         weight: 0.45,
         respondentsRaising: 168,
-        unit: '% of park in shadow at the worst test time',
-        comfortableUpTo: 20,
-        unacceptableAbove: 55
+        unit: '% of park newly shadowed by this project at the worst test time',
+        comfortableUpTo: 15,
+        unacceptableAbove: 45
       },
       {
         id: 'height',

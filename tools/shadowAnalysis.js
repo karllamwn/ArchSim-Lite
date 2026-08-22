@@ -7,7 +7,7 @@
 //
 // The ENVIRONMENTAL agent may only cite what this function returns.
 
-import { SITE, PARK, NEIGHBOUR } from '../core/site.js';
+import { SITE, PARK, CONTEXT } from '../core/site.js';
 import { sunVector, sunPosition } from '../view/sun.js';
 import { volumeToBox, rayHitsBox, round } from './geometry.js';
 
@@ -31,16 +31,13 @@ export function shadowAnalysis(state, times) {
   const samples = buildSampleGrid();
   const parkArea = PARK.width * PARK.depth;
 
-  // Everything that can cast a shadow: the designed volumes plus the existing
-  // neighbour block, which was there before the project and shades the park too.
-  const casters = [
-    ...state.volumes.map(volumeToBox),
-    {
-      x: NEIGHBOUR.x, z: NEIGHBOUR.z,
-      w: NEIGHBOUR.width, d: NEIGHBOUR.depth,
-      height: NEIGHBOUR.height, rotation: 0
-    }
-  ];
+  // Everything that can cast a shadow: the volumes being designed, plus the
+  // surrounding city, which was there first and shades the park whatever the
+  // project does.
+  const designBoxes = state.volumes.map(volumeToBox);
+  const contextBoxes = CONTEXT.map(b => ({
+    x: b.x, z: b.z, w: b.width, d: b.depth, height: b.height, rotation: 0
+  }));
 
   const results = times.map(time => {
     const sun = sunPosition(time.month, time.day, time.hour, SITE.latitude);
@@ -60,40 +57,66 @@ export function shadowAnalysis(state, times) {
 
     const dir = sunVector(time.month, time.day, time.hour, SITE.latitude);
 
+    // Count two things at once: how much of the park is shaded altogether, and
+    // how much would be shaded anyway by the buildings that were already there.
+    // The difference is what this project is actually responsible for, which is
+    // the only part an agent can fairly argue about.
     let shadowed = 0;
+    let contextShadowed = 0;
+
     for (const point of samples) {
-      if (casters.some(box => rayHitsBox(point.x, point.z, dir, box))) shadowed++;
+      const byContext = contextBoxes.some(box => rayHitsBox(point.x, point.z, dir, box));
+      const byDesign = !byContext &&
+        designBoxes.some(box => rayHitsBox(point.x, point.z, dir, box));
+
+      if (byContext) contextShadowed++;
+      if (byContext || byDesign) shadowed++;
     }
 
     const percent = (shadowed / samples.length) * 100;
+    const existingPercent = (contextShadowed / samples.length) * 100;
 
     return {
       label: time.label,
       hour: time.hour,
       sunAltitude: round(sun.altitude),
       shadowedPercent: round(percent),
-      shadowedArea: round(parkArea * percent / 100, 0)
+      shadowedArea: round(parkArea * percent / 100, 0),
+      existingPercent: round(existingPercent),
+      addedByDesignPercent: round(percent - existingPercent)
     };
   });
 
-  // The worst moment is the one the agent will argue from.
+  // The worst moment is the one the agent will argue from. Rank by the shadow
+  // the design ADDS, not by the total: a moment when the park is dark because
+  // of buildings that predate the project is not this project's argument.
   const measured = results.filter(r => r.shadowedPercent !== null);
   const worst = measured.reduce(
-    (a, b) => (b.shadowedPercent > a.shadowedPercent ? b : a),
+    (a, b) => (b.addedByDesignPercent > a.addedByDesignPercent ? b : a),
     measured[0] ?? null
   );
 
   const average = measured.length
     ? round(measured.reduce((sum, r) => sum + r.shadowedPercent, 0) / measured.length)
     : null;
+  const averageAdded = measured.length
+    ? round(measured.reduce((sum, r) => sum + r.addedByDesignPercent, 0) / measured.length)
+    : null;
 
   return {
     times: results,
     worst,
     averageShadowedPercent: average,
+    averageAddedByDesignPercent: averageAdded,
     parkArea: round(parkArea, 0),
     sampleCount: samples.length,
-    units: { area: 'm2', percent: '% of park area', altitude: 'degrees' }
+    contextBuildingCount: contextBoxes.length,
+    units: {
+      area: 'm2',
+      percent: '% of park area',
+      altitude: 'degrees',
+      addedByDesignPercent: '% of park shaded by this project that would not be shaded anyway'
+    }
   };
 }
 

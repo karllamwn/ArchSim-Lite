@@ -14,19 +14,24 @@ import { AGENTS } from '../agents/index.js';
 
 // The backdrop's own proportions. The room box is fitted to these inside
 // whatever space the pane has, letterboxed rather than stretched or cropped.
-const ROOM_ASPECT = 1060 / 750;
+const ROOM_ASPECT = 1400 / 789;
 const ROOM_PADDING = 10;   // px of breathing room inside the pane
 
-// Desk positions as percentages of the backdrop, so the room scales with the
-// panel. Ordered as agents appear in agents/index.js. Beyond the fifth, agents
-// are spaced along the back wall.
+// Where each consultant stands, as percentages of the backdrop, so the room
+// scales with the pane. These line up with the six desks in the art: the front
+// row first, then the back row. Agents are seated in the order they appear in
+// agents/index.js, which leaves three desks free for the ones students write.
+// Past six, they gather at the meeting table on the right.
 const DESKS = [
-  { left: 27, top: 62 },
-  { left: 70, top: 62 },
-  { left: 27, top: 97 },
-  { left: 70, top: 97 },
-  { left: 48, top: 52 }
+  { left: 11,   top: 60 },
+  { left: 35.5, top: 60 },
+  { left: 63,   top: 60 },
+  { left: 11,   top: 93 },
+  { left: 35.5, top: 93 },
+  { left: 63,   top: 93 }
 ];
+
+const MEETING_TABLE = { left: 88, top: 62 };
 
 let figures = new Map();   // agent id -> { figure, bubble }
 let roomEl = null;
@@ -47,7 +52,10 @@ export function initOffice(container) {
   figures = new Map();
 
   AGENTS.forEach((agent, i) => {
-    const spot = DESKS[i] ?? { left: 12 + (i - 5) * 14, top: 40 };
+    const spot = DESKS[i] ?? {
+      left: MEETING_TABLE.left + ((i - DESKS.length) % 2 ? 5 : -5),
+      top: MEETING_TABLE.top + Math.floor((i - DESKS.length) / 2) * 14
+    };
 
     const figure = document.createElement('div');
     figure.className = 'figure';

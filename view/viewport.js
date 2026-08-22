@@ -8,23 +8,28 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import { state, subscribe, volumeHeight } from '../core/state.js';
-import { SITE, PARK, NEIGHBOUR } from '../core/site.js';
+import { SITE, PARK, CONTEXT } from '../core/site.js';
 import { sunVector, sunPosition } from './sun.js';
 
 // ── Colours, in one place so the palette is easy to change ───────────────────
 // Matched to the ArchSim V2 dark theme in css/style.css.
 
+// Each surface has to be told apart at a glance from across a lecture room, so
+// the values step clearly rather than sitting in one dark band: ground darkest,
+// then context, then the parcel, with the park the only green and the design the
+// only bright thing on the board.
 const COLOR = {
-  sky:       0x0d1716,   // --bg
-  ground:    0x14201f,
-  site:      0x1d3a36,   // --bg1, a shade lighter than the ground
-  park:      0x2f6b52,   // muted green, still reads as planting
-  neighbour: 0x2a3d3b,   // existing context, deliberately quiet
-  volume:    0xd8e6e1,   // the design reads pale against the dark ground
-  selected:  0x45d1b3,   // --accent
-  grid:      0x24413d,
-  gridSub:   0x1a2f2d,
-  north:     0xff7f50    // --accent2
+  sky:         0x0d1716, // --bg
+  ground:      0x161f1e,
+  site:        0x2a4540, // the buildable parcel, lifted off the ground plane
+  park:        0x4f9b66, // the one green: this is what the argument protects
+  neighbour:   0x36504c, // existing context, present but quiet
+  contextEdge: 0x4c6a65,
+  volume:      0xe4efeb, // the design reads pale against everything else
+  selected:    0x45d1b3, // --accent
+  grid:        0x2b4a45,
+  gridSub:     0x1e332f,
+  north:       0xff7f50  // --accent2
 };
 
 // Module-level handles, set up once in initViewport().
@@ -42,11 +47,12 @@ export function initViewport(container) {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(COLOR.sky);
 
-  // Camera: a high view from the south-east. It is aimed between the site and
-  // the park rather than at the site alone, because the thing worth looking at
-  // is the shadow running from one into the other.
+  // Camera: a high view from the south-east, pulled back far enough to hold the
+  // site, the park and the surrounding blocks in one frame. It is aimed between
+  // the site and the park rather than at the site alone, because the thing worth
+  // looking at is the shadow running from one into the other.
   camera = new THREE.PerspectiveCamera(45, 1, 0.5, 2000);
-  camera.position.set(85, 95, 105);
+  camera.position.set(115, 130, 150);
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.shadowMap.enabled = true;
@@ -54,7 +60,7 @@ export function initViewport(container) {
   container.appendChild(renderer.domElement);
 
   controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0, 0, -14);   // between the site centre and the park
+  controls.target.set(0, 0, -12);   // between the site centre and the park
   controls.maxPolarAngle = Math.PI / 2 - 0.05;   // stop the camera going underground
   controls.enableDamping = true;
 
@@ -140,8 +146,9 @@ function buildGround() {
   ground.receiveShadow = true;
   scene.add(ground);
 
-  // One-metre grid over the site area, so students can read dimensions.
-  const grid = new THREE.GridHelper(120, 120, COLOR.grid, COLOR.gridSub);
+  // One-metre grid, sized to reach past the surrounding blocks so the ground
+  // does not fall away into a void behind them.
+  const grid = new THREE.GridHelper(180, 180, COLOR.grid, COLOR.gridSub);
   grid.position.y = 0.01;
   scene.add(grid);
 }
@@ -150,18 +157,30 @@ function buildContext() {
   // The buildable parcel.
   scene.add(flatRect(SITE.width, SITE.depth, 0, 0, COLOR.site, 0.02));
 
-  // The park to the north — the thing the shadow argument is about.
-  scene.add(flatRect(PARK.width, PARK.depth, PARK.x, PARK.z, COLOR.park, 0.03));
+  // The park to the north — the thing the shadow argument is about. It carries
+  // a little emissive green so it stays identifiable even when it is entirely
+  // in shadow, which is exactly the moment you most need to see where it is.
+  scene.add(flatRect(PARK.width, PARK.depth, PARK.x, PARK.z, COLOR.park, 0.03, 0x14301f));
 
-  // The existing neighbour block to the east. It casts a real shadow too.
-  const neighbour = new THREE.Mesh(
-    new THREE.BoxGeometry(NEIGHBOUR.width, NEIGHBOUR.height, NEIGHBOUR.depth),
-    new THREE.MeshLambertMaterial({ color: COLOR.neighbour })
-  );
-  neighbour.position.set(NEIGHBOUR.x, NEIGHBOUR.height / 2, NEIGHBOUR.z);
-  neighbour.castShadow = true;
-  neighbour.receiveShadow = true;
-  scene.add(neighbour);
+  // The surrounding city. Deliberately quiet in tone so the design reads as the
+  // subject, but they cast real shadows, exactly as they do in the analysis.
+  for (const building of CONTEXT) {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(building.width, building.height, building.depth),
+      new THREE.MeshLambertMaterial({ color: COLOR.neighbour })
+    );
+    mesh.position.set(building.x, building.height / 2, building.z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+
+    const edges = new THREE.LineSegments(
+      new THREE.EdgesGeometry(mesh.geometry),
+      new THREE.LineBasicMaterial({ color: COLOR.contextEdge })
+    );
+    edges.position.copy(mesh.position);
+    scene.add(edges);
+  }
 }
 
 function buildNorthArrow() {
@@ -187,10 +206,10 @@ function buildNorthArrow() {
 }
 
 /** A thin coloured rectangle lying on the ground. Used for site and park. */
-function flatRect(width, depth, x, z, color, y) {
+function flatRect(width, depth, x, z, color, y, emissive = 0x000000) {
   const mesh = new THREE.Mesh(
     new THREE.PlaneGeometry(width, depth),
-    new THREE.MeshLambertMaterial({ color })
+    new THREE.MeshLambertMaterial({ color, emissive })
   );
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.set(x, y, z);

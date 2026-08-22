@@ -31,13 +31,17 @@ export const environmentalAgent = {
       { label: 'Dec 21 12:00', month: 12, day: 21, hour: 12 }
     ],
 
-    acceptableShadowPercent: 25,   // no complaint below this
-    seriousShadowPercent: 40       // argue hard above this
+    // These thresholds apply to the shadow THIS PROJECT ADDS, not to the total.
+    // Part of the park is shaded by buildings that were there first, and that
+    // is not something the design can answer for.
+    acceptableShadowPercent: 20,   // no complaint below this
+    seriousShadowPercent: 35       // argue hard above this
   },
 
   // ── GOAL ───────────────────────────────────────────────────────────────────
-  goal: 'Keep shadow on the park below 25% of its area at every test time, and '
-      + 'treat anything above 40% as a serious problem.',
+  goal: 'Keep the shadow this project adds to the park below 20% of its area at '
+      + 'every test time, and treat anything above 35% as a serious problem. '
+      + 'Judge the design on what it adds, not on shadow that would fall anyway.',
 
   canPropose: ['floors', 'z', 'd', 'rotation'],
 
@@ -54,12 +58,17 @@ export const environmentalAgent = {
 
       const lines = result.times
         .filter(t => t.shadowedPercent !== null)
-        .map(t => `${t.label}: ${t.shadowedPercent}% (sun ${t.sunAltitude}°)`);
+        .map(t => `${t.label}: ${t.shadowedPercent}% total, ${t.addedByDesignPercent}% ours `
+                + `(sun ${t.sunAltitude}°)`);
 
-      return `Park ${result.parkArea} m², sampled at ${result.sampleCount} points. `
-           + `Worst case ${result.worst.label} at ${result.worst.shadowedPercent}% `
-           + `(${result.worst.shadowedArea} m² in shadow). `
-           + `Average across test times ${result.averageShadowedPercent}%. `
+      return `Park ${result.parkArea} m², sampled at ${result.sampleCount} points, with `
+           + `${result.contextBuildingCount} existing buildings around it. `
+           + `Worst case for this project is ${result.worst.label}: `
+           + `${result.worst.shadowedPercent}% of the park in shadow altogether, of which `
+           + `${result.worst.existingPercent}% falls there anyway and `
+           + `${result.worst.addedByDesignPercent}% is added by the design. `
+           + `Averages across test times: ${result.averageShadowedPercent}% total, `
+           + `${result.averageAddedByDesignPercent}% added. `
            + lines.join('; ') + '.';
     }
   },
@@ -70,10 +79,11 @@ export const environmentalAgent = {
     const kb = environmentalAgent.knowledge;
     const worst = result.worst;
 
-    if (!worst || worst.shadowedPercent <= kb.acceptableShadowPercent) {
+    if (!worst || worst.addedByDesignPercent <= kb.acceptableShadowPercent) {
       return {
-        argument: `No objection from me. The worst moment is ${worst.label} at `
-                + `${worst.shadowedPercent}% of the park in shadow, under my `
+        argument: `No objection from me. The park is ${worst.shadowedPercent}% shaded at `
+                + `${worst.label}, but only ${worst.addedByDesignPercent}% of that is this `
+                + `project — the rest falls there anyway. Under my `
                 + `${kb.acceptableShadowPercent}% threshold.`,
         proposal: null
       };
@@ -82,13 +92,15 @@ export const environmentalAgent = {
     const tallest = state.volumes.reduce(
       (a, b) => (b.floors * b.floorHeight > a.floors * a.floorHeight ? b : a)
     );
-    const severity = worst.shadowedPercent >= kb.seriousShadowPercent ? 'serious' : 'over threshold';
+    const severity = worst.addedByDesignPercent >= kb.seriousShadowPercent
+      ? 'serious' : 'over threshold';
 
     return {
       argument: `This is ${severity}. At ${worst.label} the sun is only `
-              + `${worst.sunAltitude}° above the horizon and ${worst.shadowedPercent}% `
-              + `of the park sits in shadow, about ${worst.shadowedArea} m². My limit `
-              + `is ${kb.acceptableShadowPercent}%. Height is what is driving it.`,
+              + `${worst.sunAltitude}° up and the park is ${worst.shadowedPercent}% shaded. `
+              + `${worst.existingPercent}% of that is the existing blocks, but `
+              + `${worst.addedByDesignPercent}% is ours, against a limit of `
+              + `${kb.acceptableShadowPercent}%. Height is what is driving it.`,
       proposal: {
         volumeId: tallest.id,
         parameter: 'floors',

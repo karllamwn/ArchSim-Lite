@@ -35,16 +35,37 @@ export const PARK = {
   depth: 30
 };
 
-// An existing neighbour building to the east. It casts its own shadow and
-// constrains what can go near the east edge.
-export const NEIGHBOUR = {
-  name: 'Neighbour Block',
-  x: 45,       // east of the site
-  z: 5,
-  width: 20,
-  depth: 30,
-  height: 18   // roughly six storeys
-};
+// The surrounding city. These are existing buildings: you cannot change them,
+// but they are there, and the ones that stand between the sun and the park cast
+// their own shadow into it. That baseline matters — part of the shading the
+// Environmental agent measures was never the project's fault.
+//
+// Placement note: shadows fall north, so only buildings SOUTH of the park can
+// reach it. The row along the park's north edge frames the space without
+// touching the shadow numbers.
+export const CONTEXT = [
+  // Immediate neighbours, either side of the site
+  { name: 'East Neighbour',  x:  46, z:   4, width: 22, depth: 30, height: 18 },
+  { name: 'West Neighbour',  x: -46, z:   2, width: 20, depth: 26, height: 14 },
+
+  // Across the lane to the south, behind the site
+  { name: 'South Block A',   x: -22, z:  46, width: 26, depth: 22, height: 21 },
+  { name: 'South Block B',   x:  16, z:  48, width: 24, depth: 20, height: 12 },
+  { name: 'South Tower',     x:  50, z:  52, width: 18, depth: 18, height: 34 },
+
+  // The far side of the park, framing it from the north
+  { name: 'North Row A',     x: -34, z: -62, width: 22, depth: 16, height: 11 },
+  { name: 'North Row B',     x:  -6, z: -64, width: 20, depth: 16, height:  9 },
+  { name: 'North Row C',     x:  22, z: -62, width: 24, depth: 16, height: 13 },
+
+  // Flanking the park, east and west
+  { name: 'Park Edge East',  x:  48, z: -34, width: 18, depth: 24, height: 16 },
+  { name: 'Park Edge West',  x: -48, z: -36, width: 18, depth: 22, height: 10 }
+];
+
+// Kept as a named export because the first neighbour is the one the layout
+// rules and the older examples refer to.
+export const NEIGHBOUR = CONTEXT[0];
 
 // Convenience: the four corners of the buildable area after setbacks.
 // Returns {minX, maxX, minZ, maxZ} in metres.

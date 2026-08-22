@@ -288,13 +288,13 @@ body {
   border-radius: 4px;
 }
 
-/* Sink the room slightly into the page's darkness so the pale pixel art does
-   not fight the dark interface around it. */
+/* A light vignette so the room settles into the dark interface without
+   muddying the artwork. */
 .office-room::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, rgba(13,23,22,0.55), rgba(13,23,22,0.15) 45%, rgba(13,23,22,0.7));
+  background: radial-gradient(ellipse at 50% 45%, rgba(13,23,22,0) 45%, rgba(13,23,22,0.45) 100%);
   pointer-events: none;
 }
 
