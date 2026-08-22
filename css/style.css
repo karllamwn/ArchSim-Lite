@@ -106,6 +106,27 @@ body {
   overflow: hidden;       /* the canvas must never make this column taller */
 }
 
+/* The design and the people arguing about it, side by side. The office
+   backdrop is roughly 4:3, so it wants a squarish half rather than a wide
+   letterbox strip. */
+.stage-split {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+/* Side by side is the normal case: the 4:3 room fills a half-width pane far
+   better than it fills a wide shallow strip, where it would sit marooned
+   between two empty bands. Only on a genuinely narrow window is stacking the
+   lesser evil. */
+@media (max-width: 1150px) {
+  .stage-split {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 320px;
+  }
+}
+
 .viewport { flex: 1; min-height: 0; position: relative; }
 
 /* The renderer is told not to set inline sizes, so CSS drives the display size
@@ -234,6 +255,128 @@ body {
 .readout-label { color: var(--muted); }
 .readout-value { font-variant-numeric: tabular-nums; color: var(--text); }
 .readout-value.warn { color: var(--accent2); }
+
+/* ── The Multi-Agents Design Lab ──────────────────────────────────────────── */
+/* A fixed strip under the 3D view. The consultants stand at desks; when one
+   speaks it steps forward and the others dim. Static by design — see
+   ui/office.js for why there is no walking. */
+
+.office {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--border);
+}
+
+@media (max-width: 1150px) {
+  .office { border-left: none; border-top: 1px solid var(--border); }
+}
+
+/* The room keeps the backdrop's own proportions and is fitted inside the pane
+   by ui/office.js. CSS alone cannot do "shrink to fit while preserving ratio":
+   aspect-ratio plus max-height clamps the height without re-deriving the width.
+   Absolutely positioned, so its size can never feed back into the layout.
+   Figures sit at percentages of this box, so they stay at their desks whatever
+   shape the window is. */
+.office-room {
+  position: absolute;
+  background-image: url('../assets/office/lab.png');
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+/* Sink the room slightly into the page's darkness so the pale pixel art does
+   not fight the dark interface around it. */
+.office-room::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(13,23,22,0.55), rgba(13,23,22,0.15) 45%, rgba(13,23,22,0.7));
+  pointer-events: none;
+}
+
+.figure {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  transition: transform 180ms ease, opacity 180ms ease;
+  z-index: 1;
+}
+
+.office-room.has-speaker .figure { opacity: 0.45; }
+.office-room.has-speaker .figure.speaking { opacity: 1; }
+
+.figure.speaking {
+  transform: translate(-50%, -108%) scale(1.12);
+  z-index: 3;
+}
+
+.figure-art {
+  display: block;
+  width: 46px;
+  height: auto;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.5));
+}
+
+.figure-letter {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: var(--agent-color);
+  background: var(--bg1);
+  border: 2px solid var(--agent-color);
+  border-radius: 4px;
+}
+
+.figure-name {
+  margin-top: 1px;
+  text-align: center;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--agent-color);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  white-space: nowrap;
+}
+
+.bubble {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%, 6px);
+  width: 220px;
+  margin-bottom: 8px;
+  padding: 7px 9px;
+  background: var(--panel-alt);
+  border: 1px solid var(--agent-color);
+  border-radius: 5px;
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--text);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.bubble.showing { opacity: 1; transform: translate(-50%, 0); }
+.bubble-error { border-color: var(--accent2); color: var(--accent2); }
+
+/* The little tail pointing down at whoever is speaking. */
+.bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border: 5px solid transparent;
+  border-top-color: var(--agent-color);
+}
 
 /* ── Debug panel (milestone 2) ────────────────────────────────────────────── */
 

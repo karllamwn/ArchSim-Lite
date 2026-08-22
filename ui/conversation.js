@@ -6,6 +6,7 @@ import { runRound, isRunning, currentRound } from '../core/negotiation.js';
 import { getApiKey, setApiKey, hasApiKey } from '../api/gemini.js';
 import { record, subscribeLog, describe, toText } from '../core/log.js';
 import { formatValue } from '../core/parameters.js';
+import { speak, quiet } from './office.js';
 
 let feed;          // the scrolling conversation
 let runButton;
@@ -93,10 +94,16 @@ async function startRound() {
       runButton.textContent = text.length > 34 ? 'Working…' : text;
       addSystemLine(text);
     },
-    onMessage: addMessage,
+    onMessage: entry => {
+      // The room and the transcript show the same thing two ways: the agent
+      // says it out loud at its desk, and it is written down on the right.
+      speak(entry.agent, entry.text, entry.kind);
+      addMessage(entry);
+    },
     onProposal: addProposal
   });
 
+  quiet();
   runButton.disabled = false;
   runButton.textContent = 'Run another round';
 }
