@@ -1,143 +1,193 @@
 /* css/style.css — one stylesheet, plain CSS, no preprocessor.
-   Layout: fixed header, then three columns that fill the rest of the window. */
+   Palette and fonts follow ArchSim V2 so the two projects read as a family. */
 
 :root {
-  --bg:        #f4f5f6;
-  --panel:     #ffffff;
-  --ink:       #232a2e;
-  --ink-soft:  #6d7276;
-  --line:      #dfe3e5;
-  --accent:    #4a90d9;
-  --accent-dk: #2f6ea8;
+  /* ── Palette, carried over from ArchSim V2 ── */
+  --bg:        #0d1716;
+  --bg1:       #163532;
+  --border:    rgba(171, 218, 201, 0.22);
+  --border-hi: rgba(171, 218, 201, 0.5);
+  --accent:    #45d1b3;
+  --accent2:   #ff7f50;
+  --text:      rgba(236, 247, 243, 0.92);
+  --muted:     rgba(152, 181, 172, 0.85);
+  --panel:     rgba(10, 25, 23, 0.72);
+  --panel-alt: rgba(8, 20, 19, 0.88);
+
+  /* ── Fonts ── */
+  --font:         'VT323', monospace;
+  --font-display: 'VT323', monospace;
+
+  /* ── Agent colours, drawn from the V2 set ── */
+  --architect:     #6eabff;
+  --community:     #ff8aa5;
+  --environmental: #ffbe6a;
+  --designer:      #9df0cf;
 }
 
 * { box-sizing: border-box; }
 
-html, body {
+html { height: 100%; }
+
+/* The page is a column: a fixed header, then everything else fills what is
+   left. Doing it with flex rather than a calc() means no magic number has to
+   match the header height, and the 3D canvas can never push the layout taller
+   than the window. */
+body {
   height: 100%;
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--bg);
-  color: var(--ink);
-  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  font: 17px/1.45 var(--font);
+  letter-spacing: 0.01em;
 }
 
 /* ── Header ───────────────────────────────────────────────────────────────── */
 
 .topbar {
+  flex: 0 0 auto;
   display: flex;
   align-items: baseline;
   gap: 20px;
-  padding: 12px 20px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
+  padding: 10px 18px;
+  background: var(--panel-alt);
+  border-bottom: 1px solid var(--border);
 }
 
-.brand { font-size: 18px; font-weight: 650; letter-spacing: -0.01em; }
-.brand span { color: var(--accent); font-weight: 400; }
+.brand {
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1;
+  color: var(--text);
+}
+.brand span { color: var(--accent); }
 
-.tagline { color: var(--ink-soft); font-size: 13px; }
+.tagline { color: var(--muted); font-size: 16px; }
 
 .milestone {
   margin-left: auto;
-  font-size: 12px;
-  color: var(--ink-soft);
-  padding: 3px 10px;
-  border: 1px solid var(--line);
+  font-size: 15px;
+  color: var(--accent);
+  padding: 2px 12px;
+  border: 1px solid var(--border);
   border-radius: 99px;
 }
 
 /* ── Three-column layout ──────────────────────────────────────────────────── */
 
 .layout {
+  flex: 1;
+  min-height: 0;          /* lets the three columns scroll instead of stretching */
   display: grid;
-  grid-template-columns: 280px 1fr 280px;
-  height: calc(100% - 50px);
+  grid-template-columns: 290px 1fr 330px;
 }
 
 .panel {
   background: var(--panel);
   overflow-y: auto;
-  padding: 4px 0 24px;
+  min-height: 0;
 }
-.panel-left  { border-right: 1px solid var(--line); }
-.panel-right { border-left: 1px solid var(--line); }
+.panel-left  { border-right: 1px solid var(--border); }
+.panel-right {
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;       /* the conversation inside does the scrolling */
+}
 
-.stage { display: flex; flex-direction: column; min-width: 0; }
+.stage {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;       /* the canvas must never make this column taller */
+}
 
 .viewport { flex: 1; min-height: 0; position: relative; }
 
 /* The renderer is told not to set inline sizes, so CSS drives the display size
-   and view/viewport.js keeps the drawing buffer matched to it. */
-.viewport canvas { display: block; width: 100%; height: 100%; }
+   and view/viewport.js keeps the drawing buffer matched to it. Positioning the
+   canvas absolutely takes it out of the flow entirely, so it can never feed its
+   own height back into the layout. */
+.viewport canvas {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
 
 .stage-note {
-  padding: 8px 16px;
-  font-size: 12px;
-  color: var(--ink-soft);
-  background: var(--panel);
-  border-top: 1px solid var(--line);
+  padding: 7px 16px;
+  font-size: 15px;
+  color: var(--muted);
+  background: var(--panel-alt);
+  border-top: 1px solid var(--border);
 }
 
 /* ── Panel sections ───────────────────────────────────────────────────────── */
 
-.panel-section { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.panel-section { padding: 12px 16px; border-bottom: 1px solid var(--border); }
 
 .panel-section h2 {
-  margin: 0 0 10px;
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.08em;
+  margin: 0 0 9px;
+  font-size: 14px;
+  font-weight: normal;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ink-soft);
+  color: var(--accent);
 }
 
-.placeholder { margin: 0; font-size: 13px; color: var(--ink-soft); }
+.placeholder { margin: 0; font-size: 16px; color: var(--muted); }
 
 /* ── Controls ─────────────────────────────────────────────────────────────── */
 
-.control { margin-bottom: 12px; }
+.control { margin-bottom: 10px; }
 
 .control-head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 3px;
+  margin-bottom: 2px;
 }
 
-.control-head label { font-size: 13px; }
+.control-head label { font-size: 16px; color: var(--muted); }
 
 .control-value {
   font-variant-numeric: tabular-nums;
-  font-size: 13px;
-  color: var(--accent-dk);
-  font-weight: 600;
+  font-size: 17px;
+  color: var(--accent);
 }
 
 .slider {
   width: 100%;
   accent-color: var(--accent);
   margin: 0;
+  background: transparent;
 }
 
 /* ── Tabs and buttons ─────────────────────────────────────────────────────── */
 
-.tab-row { display: flex; gap: 6px; margin-bottom: 10px; }
+.tab-row { display: flex; gap: 6px; margin-bottom: 9px; }
 
 .tab {
   flex: 1;
-  padding: 7px 0;
+  padding: 5px 0;
   font: inherit;
-  font-weight: 600;
-  color: var(--ink-soft);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 5px;
+  font-size: 18px;
+  color: var(--muted);
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: 4px;
   cursor: pointer;
 }
 .tab-on {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--bg);
 }
 
 .button-row { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -145,35 +195,228 @@ html, body {
 .btn {
   flex: 1;
   min-width: 0;
-  padding: 6px 8px;
+  padding: 5px 8px;
   font: inherit;
-  font-size: 13px;
-  background: var(--bg);
-  color: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: 5px;
+  font-size: 16px;
+  background: var(--bg1);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
   cursor: pointer;
   white-space: nowrap;
 }
-.btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-dk); }
-.btn:disabled { opacity: 0.4; cursor: default; }
+.btn:hover:not(:disabled) { border-color: var(--border-hi); color: var(--accent); }
+.btn:disabled { opacity: 0.35; cursor: default; }
 
-.btn-small { font-size: 12px; padding: 5px 4px; }
-.btn-quiet { color: var(--ink-soft); }
-.btn-on {
+.btn-small { font-size: 15px; padding: 4px 4px; }
+.btn-quiet { color: var(--muted); }
+.btn-on, .btn-on:hover {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--bg);
 }
-.btn-on:hover { color: #fff; }
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+.btn-primary:hover:not(:disabled) { background: var(--accent); color: var(--bg); filter: brightness(1.1); }
 
 /* ── Readouts ─────────────────────────────────────────────────────────────── */
 
 .readout {
   display: flex;
   justify-content: space-between;
-  padding: 4px 0;
-  font-size: 13px;
+  padding: 2px 0;
+  font-size: 16px;
 }
-.readout-label { color: var(--ink-soft); }
-.readout-value { font-variant-numeric: tabular-nums; font-weight: 600; }
+.readout-label { color: var(--muted); }
+.readout-value { font-variant-numeric: tabular-nums; color: var(--text); }
+.readout-value.warn { color: var(--accent2); }
+
+/* ── Debug panel (milestone 2) ────────────────────────────────────────────── */
+
+.tool-block { margin-bottom: 10px; }
+
+.tool-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 16px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.tool-name .btn { flex: 0 0 auto; }
+.tool-name code { color: var(--accent); font-family: var(--font); }
+
+.tool-output {
+  margin: 0;
+  padding: 8px 10px;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.35;
+  color: var(--muted);
+  white-space: pre-wrap;
+  overflow-x: auto;
+  max-height: 220px;
+}
+
+/* ── Conversation (milestones 3-4) ────────────────────────────────────────── */
+
+.conversation {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.msg {
+  border-left: 3px solid var(--agent-color, var(--accent));
+  background: var(--panel-alt);
+  padding: 8px 10px;
+  border-radius: 0 4px 4px 0;
+}
+
+.msg-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 3px;
+}
+.msg-head .msg-who { flex: 1; }
+
+/* ── Agent avatars ────────────────────────────────────────────────────────── */
+/* Pixel portraits carried over from ArchSim V2. image-rendering: pixelated
+   keeps the pixels crisp instead of blurring them when the browser scales. */
+
+.avatar {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  object-position: top center;
+  image-rendering: pixelated;
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px;
+}
+
+/* Fallback for an agent with no artwork: its initial, in its own colour. */
+.avatar-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.msg-who {
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--agent-color, var(--accent));
+}
+
+.msg-round { font-size: 14px; color: var(--muted); }
+
+.msg-body { font-size: 16px; color: var(--text); }
+
+.msg-evidence {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px dashed var(--border);
+  font-size: 14px;
+  color: var(--muted);
+}
+.msg-evidence b { color: var(--accent); font-weight: normal; }
+
+.msg-system {
+  border-left-color: var(--muted);
+  text-align: center;
+  color: var(--muted);
+  font-size: 15px;
+  background: none;
+  border-left: none;
+  padding: 2px 0;
+}
+
+.msg-error { border-left-color: var(--accent2); }
+.msg-error .msg-who { color: var(--accent2); }
+
+/* ── Proposal cards ───────────────────────────────────────────────────────── */
+
+.proposal {
+  border: 1px solid var(--agent-color, var(--accent));
+  border-radius: 4px;
+  padding: 8px 10px;
+  background: var(--panel-alt);
+}
+
+.proposal-change {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 17px;
+  color: var(--text);
+  margin-bottom: 5px;
+}
+.proposal-change b { color: var(--agent-color, var(--accent)); font-weight: normal; }
+
+.proposal-actions { display: flex; gap: 6px; }
+
+.proposal-done {
+  font-size: 15px;
+  color: var(--muted);
+}
+.proposal-done.accepted { color: var(--accent); }
+.proposal-done.rejected { color: var(--accent2); }
+
+/* ── Decision log ─────────────────────────────────────────────────────────── */
+
+.log-entry {
+  font-size: 15px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--border);
+  color: var(--muted);
+}
+.log-entry:last-child { border-bottom: none; }
+.log-entry b { color: var(--text); font-weight: normal; }
+.log-entry .log-agent { color: var(--agent-color, var(--accent)); }
+
+/* ── API key row ──────────────────────────────────────────────────────────── */
+
+.key-row { display: flex; gap: 6px; }
+
+.key-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 15px;
+  background: var(--bg1);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.key-input::placeholder { color: var(--muted); }
+
+.mode-note { margin: 6px 0 0; font-size: 15px; color: var(--muted); }
+.mode-note b { color: var(--accent); font-weight: normal; }
+
+/* ── Scrollbars, so they do not break the dark theme ──────────────────────── */
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb {
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--border); }

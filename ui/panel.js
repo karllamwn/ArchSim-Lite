@@ -12,17 +12,9 @@ import {
 import { SITE } from '../core/site.js';
 import { sunPosition } from '../view/sun.js';
 
-// Which parameters the panel exposes, and their limits.
-// Adding a row here is all it takes to expose a new parameter.
-const VOLUME_CONTROLS = [
-  { key: 'x',           label: 'East / west',   min: -30, max: 30,  step: 0.5, unit: 'm' },
-  { key: 'z',           label: 'North / south', min: -20, max: 20,  step: 0.5, unit: 'm' },
-  { key: 'w',           label: 'Width',         min: 6,   max: 50,  step: 0.5, unit: 'm' },
-  { key: 'd',           label: 'Depth',         min: 6,   max: 34,  step: 0.5, unit: 'm' },
-  { key: 'rotation',    label: 'Rotation',      min: -45, max: 45,  step: 1,   unit: '°' },
-  { key: 'floors',      label: 'Floors',        min: 1,   max: 24,  step: 1,   unit: '' },
-  { key: 'floorHeight', label: 'Floor height',  min: 2.7, max: 5,   step: 0.1, unit: 'm' }
-];
+// The sliders come from the shared parameter list, so a slider and an agent
+// proposal can never disagree about what a legal value is.
+import { PARAMETERS as VOLUME_CONTROLS } from '../core/parameters.js';
 
 // The four dates a shadow study normally checks. The equinoxes and solstices.
 const PRESET_DATES = [

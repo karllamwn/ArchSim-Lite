@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ArchSim Lite</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 
 <!-- Libraries load from a CDN through an import map. This is what lets us
@@ -24,15 +28,21 @@
 <header class="topbar">
   <div class="brand">ArchSim <span>Lite</span></div>
   <div class="tagline">one agent &middot; one knowledge base &middot; one goal &middot; one tool</div>
-  <div class="milestone">Milestone 1 &mdash; site, massing, sun</div>
+  <div class="milestone">workshop base</div>
 </header>
 
 <main class="layout">
 
-  <!-- Left: parameters, built by ui/panel.js -->
-  <aside class="panel panel-left" id="panel"></aside>
+  <!-- Left: design parameters, the sun, and the tool debug panel -->
+  <aside class="panel panel-left">
+    <div id="panel"></div>
+    <section class="panel-section">
+      <h2>Tools</h2>
+      <div id="debug"></div>
+    </section>
+  </aside>
 
-  <!-- Centre: the 3D world, built by view/viewport.js -->
+  <!-- Centre: the 3D world -->
   <section class="stage">
     <div class="viewport" id="viewport"></div>
     <footer class="stage-note">
@@ -41,26 +51,21 @@
     </footer>
   </section>
 
-  <!-- Right: reserved for the agent conversation from milestone 3 onward. -->
-  <aside class="panel panel-right">
-    <section class="panel-section">
-      <h2>Agents</h2>
-      <p class="placeholder">
-        The negotiation appears here from milestone 3. For now, design the
-        massing and watch the shadow reach the park &mdash; that argument is
-        what the agents will have.
-      </p>
-    </section>
-  </aside>
+  <!-- Right: the negotiation -->
+  <aside class="panel panel-right" id="agents"></aside>
 
 </main>
 
 <script type="module">
   import { initViewport } from './view/viewport.js';
   import { initPanel } from './ui/panel.js';
+  import { initDebug } from './ui/debug.js';
+  import { initConversation } from './ui/conversation.js';
 
   initViewport(document.getElementById('viewport'));
   initPanel(document.getElementById('panel'));
+  initDebug(document.getElementById('debug'));
+  initConversation(document.getElementById('agents'));
 </script>
 
 </body>

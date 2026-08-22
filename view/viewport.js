@@ -12,16 +12,19 @@ import { SITE, PARK, NEIGHBOUR } from '../core/site.js';
 import { sunVector, sunPosition } from './sun.js';
 
 // ── Colours, in one place so the palette is easy to change ───────────────────
+// Matched to the ArchSim V2 dark theme in css/style.css.
 
 const COLOR = {
-  sky:       0xdfe6ec,
-  ground:    0xcfd6d3,
-  site:      0xe8e2d6,
-  park:      0x9fc08a,
-  neighbour: 0x9aa3a8,
-  volume:    0xf2f4f6,
-  selected:  0x4a90d9,
-  north:     0xd94a3d
+  sky:       0x0d1716,   // --bg
+  ground:    0x14201f,
+  site:      0x1d3a36,   // --bg1, a shade lighter than the ground
+  park:      0x2f6b52,   // muted green, still reads as planting
+  neighbour: 0x2a3d3b,   // existing context, deliberately quiet
+  volume:    0xd8e6e1,   // the design reads pale against the dark ground
+  selected:  0x45d1b3,   // --accent
+  grid:      0x24413d,
+  gridSub:   0x1a2f2d,
+  north:     0xff7f50    // --accent2
 };
 
 // Module-level handles, set up once in initViewport().
@@ -102,8 +105,9 @@ function matchCanvasToContainer() {
 // ── Fixed parts of the scene, built once ─────────────────────────────────────
 
 function buildLights() {
-  // Soft fill so faces away from the sun are not solid black.
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x8d9199, 1.1));
+  // Soft fill so faces away from the sun are not solid black. Tinted to the
+  // dark teal theme rather than neutral white.
+  scene.add(new THREE.HemisphereLight(0xbfe6dc, 0x0d1716, 1.0));
 
   // The sun. Position is set from the date/time in updateSun() below.
   sunLight = new THREE.DirectionalLight(0xfff3e0, 2.2);
@@ -137,7 +141,7 @@ function buildGround() {
   scene.add(ground);
 
   // One-metre grid over the site area, so students can read dimensions.
-  const grid = new THREE.GridHelper(120, 120, 0xaab3ae, 0xc2c9c5);
+  const grid = new THREE.GridHelper(120, 120, COLOR.grid, COLOR.gridSub);
   grid.position.y = 0.01;
   scene.add(grid);
 }
@@ -238,10 +242,10 @@ function updateVolumes(s) {
     mesh.receiveShadow = true;
     volumeGroup.add(mesh);
 
-    // A thin outline makes the edges readable against the pale ground.
+    // A thin outline keeps the edges readable against the dark ground.
     const edges = new THREE.LineSegments(
       new THREE.EdgesGeometry(mesh.geometry),
-      new THREE.LineBasicMaterial({ color: 0x4a5257 })
+      new THREE.LineBasicMaterial({ color: isSelected ? 0x0d1716 : 0x6f8a84 })
     );
     edges.position.copy(mesh.position);
     edges.rotation.copy(mesh.rotation);
