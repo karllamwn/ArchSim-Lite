@@ -98,39 +98,64 @@ export async function runRound({ onStatus, onMessage, onProposal }) {
     // The scores describe the design as it stood at the start of this round.
     recordRound(roundNumber, scores);
 
-    // ── 3. One reply round, then final proposals ─────────────────────────────
+    // ── 3. One reply round ───────────────────────────────────────────────────
+    // Everybody answers before anybody proposes, so the exchange reads as a
+    // discussion rather than three unrelated verdicts. This runs in demo mode
+    // too: without it the room never actually argues, which is the one thing
+    // the project is trying to show.
     for (const entry of opening) {
       const { agent, evidence, result } = entry;
 
+      // What everyone else said, in a shape an agent can inspect rather than
+      // just a wall of text.
       const others = opening
         .filter(o => o.agent.id !== agent.id)
-        .map(o => `${o.agent.name}: ${o.reply.argument}`)
-        .join('\n');
+        .map(o => ({
+          id: o.agent.id,
+          name: o.agent.name,
+          argument: o.reply.argument,
+          wantsChange: !!o.reply.wantsChange,
+          parameter: o.reply.parameter ?? null,
+          value: o.reply.value ?? null
+        }));
 
-      let final = entry.reply;
+      if (others.length === 0) continue;
 
-      if (live && others) {
-        onStatus(`${agent.name} is responding…`);
+      onStatus(`${agent.name} is responding…`);
+
+      if (live) {
         try {
-          final = await askLive(agent, evidence, others);
+          const transcript = others.map(o => `${o.name}: ${o.argument}`).join('\n');
+          const final = await askLive(agent, evidence, transcript);
+          entry.reply = final;   // a live agent may change its mind here
           onMessage({ agent, text: final.argument, evidence, kind: 'reply' });
         } catch (error) {
           onMessage({ agent, text: error.message, evidence, kind: 'error' });
         }
+      } else if (typeof agent.demoReply === 'function') {
+        // Demo replies do not revise the proposal — only the wording is
+        // pre-written, and rewriting the proposal here would hide which agent
+        // actually asked for the change.
+        const text = agent.demoReply(result, state, others);
+        if (text) onMessage({ agent, text, evidence, kind: 'reply' });
       }
+    }
 
-      if (final.wantsChange) {
-        const proposal = validateProposal(agent, final);
-        if (proposal.ok) {
-          onProposal({ agent, proposal: proposal.value, evidence, round: roundNumber });
-        } else {
-          onMessage({
-            agent,
-            text: `Proposal rejected before it reached you: ${proposal.error}`,
-            evidence,
-            kind: 'error'
-          });
-        }
+    // ── 4. Proposals, once the discussion has finished ───────────────────────
+    for (const entry of opening) {
+      const { agent, evidence } = entry;
+      if (!entry.reply.wantsChange) continue;
+
+      const proposal = validateProposal(agent, entry.reply);
+      if (proposal.ok) {
+        onProposal({ agent, proposal: proposal.value, evidence, round: roundNumber });
+      } else {
+        onMessage({
+          agent,
+          text: `Proposal rejected before it reached you: ${proposal.error}`,
+          evidence,
+          kind: 'error'
+        });
       }
     }
 

@@ -87,6 +87,40 @@ export const environmentalAgent = {
     return Math.round(100 * (1 - (added - kb.acceptableShadowPercent) / span));
   },
 
+  // ── Demo reply ─────────────────────────────────────────────────────────────
+  demoReply(result, state, others) {
+    const kb = environmentalAgent.knowledge;
+    const worst = result.worst;
+    if (!worst) return null;
+
+    const added = worst.addedByDesignPercent;
+    const ally = others.find(o => o.wantsChange && o.parameter === 'floors');
+    const architect = others.find(o => o.id === 'architect');
+
+    // Under threshold: back whoever is arguing for something else.
+    if (added <= kb.acceptableShadowPercent) {
+      return `Shadow is not the problem this round — ${added}% added against a `
+           + `${kb.acceptableShadowPercent}% limit. Whatever the others decide, `
+           + `it does not change my position.`;
+    }
+
+    if (ally) {
+      return `${ally.name} and I are asking for the same thing from different `
+           + `evidence: they are reading the survey, I am reading a `
+           + `${worst.sunAltitude}° sun angle at ${worst.label}. When two `
+           + `independent measurements point the same way, that is worth something.`;
+    }
+
+    if (architect) {
+      return `I hear the floor-area argument. But ${added}% of the park is shaded by `
+           + `this project alone, past my ${kb.acceptableShadowPercent}% limit, and `
+           + `height is the only parameter that moves it. Rotation and setback will `
+           + `not fix a winter shadow.`;
+    }
+
+    return null;
+  },
+
   // ── Demo mode ──────────────────────────────────────────────────────────────
   // Real numbers from the tool, pre-written wording.
   demo(result, state) {

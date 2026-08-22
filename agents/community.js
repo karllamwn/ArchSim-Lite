@@ -97,6 +97,37 @@ export const communityAgent = {
     return result.overallSatisfaction;
   },
 
+  // ── Demo reply ─────────────────────────────────────────────────────────────
+  demoReply(result, state, others) {
+    const kb = communityAgent.knowledge;
+    const lowest = result.lowestConcern;
+
+    if (result.overallSatisfaction >= kb.satisfactionFloor) {
+      return `Nothing further from the survey. ${result.overallSatisfaction}/100 is `
+           + `above my floor, and I would rather spend the goodwill on a later round.`;
+    }
+
+    const ally = others.find(o => o.wantsChange && o.parameter === 'floors');
+    const architect = others.find(o => o.id === 'architect');
+
+    if (lowest.id === 'parkShadow' && ally) {
+      return `${ally.name} is measuring the same thing I am hearing about. `
+           + `${lowest.respondentsRaising} of ${result.respondents} respondents raised `
+           + `shadow on the park, and it is my lowest-scoring concern at `
+           + `${lowest.satisfaction}/100. I support the reduction.`;
+    }
+
+    if (architect) {
+      return `The floor-area point is fair, and I am not asking for the building to `
+           + `disappear. But ${lowest.label.toLowerCase()} scores `
+           + `${lowest.satisfaction}/100 and drags the total to `
+           + `${result.overallSatisfaction}. Something has to give on that concern, `
+           + `not on all of them.`;
+    }
+
+    return null;
+  },
+
   // ── Demo mode ──────────────────────────────────────────────────────────────
   demo(result, state) {
     const kb = communityAgent.knowledge;

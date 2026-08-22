@@ -90,6 +90,43 @@ export const architectAgent = {
     return Math.max(0, Math.min(100, Math.round(score)));
   },
 
+  // ── Demo reply ─────────────────────────────────────────────────────────────
+  // Answers the others once. This agent is the counterweight: when everyone
+  // else wants the building smaller, somebody has to speak for the brief.
+  demoReply(result, state, others) {
+    const shrinkers = others.filter(o =>
+      o.wantsChange && ['floors', 'w', 'd'].includes(o.parameter)
+    );
+
+    if (shrinkers.length === 0) {
+      return `No argument from me. Nothing on the table breaks a rule, and `
+           + `coverage stays at ${result.siteCoveragePercent}% against a `
+           + `${result.maxCoveragePercent}% limit.`;
+    }
+
+    // What the design would be left with if every reduction were accepted.
+    const worst = shrinkers.reduce((lowest, o) =>
+      (o.parameter === 'floors' && (lowest === null || o.value < lowest)) ? o.value : lowest,
+      null
+    );
+
+    const names = shrinkers.map(o => o.name).join(' and ');
+    const gfaNow = result.totalGFA;
+
+    if (worst !== null) {
+      const plate = result.volumes[0] ? result.volumes[0].footprintArea : 0;
+      const gfaAfter = Math.round(plate * worst);
+      return `${names} both want fewer floors. Understood, but note the cost: `
+           + `${gfaNow} m² of floor area now, roughly ${gfaAfter} m² at ${worst} floors. `
+           + `I can accept the reduction, but not repeatedly — at some point there `
+           + `is no building left to argue about.`;
+    }
+
+    return `${names} want a smaller footprint. Coverage is already only `
+         + `${result.siteCoveragePercent}%, so the constraint being solved is not mine. `
+         + `I would rather lose height than plan area.`;
+  },
+
   // ── Demo mode ──────────────────────────────────────────────────────────────
   demo(result, state) {
     const kb = architectAgent.knowledge;
