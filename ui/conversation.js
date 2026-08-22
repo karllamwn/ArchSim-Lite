@@ -1,7 +1,7 @@
 // ui/conversation.js — the right panel: run a round, read the argument,
 // accept or reject each proposal, and watch the decision log fill up.
 
-import { updateVolume } from '../core/state.js';
+import { state, updateVolume } from '../core/state.js';
 import { runRound, isRunning, currentRound } from '../core/negotiation.js';
 import { getApiKey, setApiKey, hasApiKey } from '../api/gemini.js';
 import { record, subscribeLog, describe, toText } from '../core/log.js';
@@ -201,6 +201,24 @@ function addProposal({ agent, proposal, evidence, round }) {
   reject.textContent = 'Reject';
 
   const settle = decision => {
+    const volume = state.volumes.find(v => v.id === proposal.volumeId);
+
+    // The volume may have been deleted since the agent proposed this.
+    if (!volume) {
+      actions.remove();
+      const gone = document.createElement('div');
+      gone.className = 'proposal-done rejected';
+      gone.textContent = `✕ volume ${proposal.volumeId} no longer exists`;
+      card.appendChild(gone);
+      return;
+    }
+
+    // Cards stay on screen across rounds, so by the time one is accepted the
+    // parameter may already have moved — another proposal may have changed it,
+    // or the designer may have. Read the value as it is right now, not as it
+    // was when the agent spoke, or the log records a change that never happened.
+    const from = volume[proposal.parameter];
+
     // The design only ever changes here, when the designer says so.
     if (decision === 'accepted') {
       updateVolume(proposal.volumeId, { [proposal.parameter]: proposal.to });
@@ -212,7 +230,7 @@ function addProposal({ agent, proposal, evidence, round }) {
       agentName: agent.name,
       volumeId: proposal.volumeId,
       parameter: proposal.parameter,
-      from: proposal.from,
+      from,
       to: proposal.to,
       reason: proposal.reason,
       evidence,

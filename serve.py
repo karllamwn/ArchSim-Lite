@@ -10,11 +10,16 @@ confused minutes.
     python serve.py 8080       # another port
 """
 
+import os
 import sys
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 3100
+
+# Serve the folder this script lives in, not whatever directory you happened to
+# be in when you ran it. One less thing to get wrong.
+ROOT = os.path.dirname(os.path.abspath(__file__))
 
 
 class NoCacheHandler(SimpleHTTPRequestHandler):
@@ -31,7 +36,7 @@ class NoCacheHandler(SimpleHTTPRequestHandler):
 
 
 def main():
-    handler = partial(NoCacheHandler, directory=".")
+    handler = partial(NoCacheHandler, directory=ROOT)
     with ThreadingHTTPServer(("", PORT), handler) as server:
         print(f"ArchSim Lite running at http://localhost:{PORT}")
         print("Caching is off, so a reload always shows your latest edit.")
