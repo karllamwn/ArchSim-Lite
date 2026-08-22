@@ -84,6 +84,23 @@ export const templateAgent = {
     }
   },
 
+  // ── GOAL, AS A NUMBER ──────────────────────────────────────────────────────
+  // The same goal as above, scored 0 to 100, so your agent gets an axis on the
+  // radar and a line on the convergence graph. Keep it simple and predictable:
+  // a reader should be able to guess the score from the tool result.
+  //
+  // Leave this out and your agent still argues, it just does not appear on the
+  // charts.
+  satisfaction(result) {
+    const kb = templateAgent.knowledge;
+
+    if (result.measured <= kb.comfortableUpTo) return 100;
+    if (result.measured >= kb.unacceptableAbove) return 0;
+
+    const span = kb.unacceptableAbove - kb.comfortableUpTo;
+    return Math.round(100 * (1 - (result.measured - kb.comfortableUpTo) / span));
+  },
+
   /**
    * Demo mode: what this agent says when no API key is present.
    *

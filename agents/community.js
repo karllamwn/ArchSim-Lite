@@ -91,6 +91,12 @@ export const communityAgent = {
     }
   },
 
+  // ── GOAL, AS A NUMBER ──────────────────────────────────────────────────────
+  // The survey already produces a 0-100 figure, so this agent simply reports it.
+  satisfaction(result) {
+    return result.overallSatisfaction;
+  },
+
   // ── Demo mode ──────────────────────────────────────────────────────────────
   demo(result, state) {
     const kb = communityAgent.knowledge;

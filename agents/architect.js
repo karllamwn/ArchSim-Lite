@@ -77,6 +77,19 @@ export const architectAgent = {
     }
   },
 
+  // ── GOAL, AS A NUMBER ──────────────────────────────────────────────────────
+  // The same goal the sentence above states, scored 0-100 so it can be plotted.
+  // Every rule issue costs 20 points; coverage over the limit costs the rest in
+  // proportion to how far over it is.
+  satisfaction(result) {
+    let score = 100 - result.violationCount * 20;
+    if (result.exceedsMaxCoverage) {
+      const over = result.siteCoveragePercent - result.maxCoveragePercent;
+      score -= Math.min(30, over * 2);
+    }
+    return Math.max(0, Math.min(100, Math.round(score)));
+  },
+
   // ── Demo mode ──────────────────────────────────────────────────────────────
   demo(result, state) {
     const kb = architectAgent.knowledge;

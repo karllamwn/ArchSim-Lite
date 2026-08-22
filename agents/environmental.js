@@ -73,6 +73,20 @@ export const environmentalAgent = {
     }
   },
 
+  // ── GOAL, AS A NUMBER ──────────────────────────────────────────────────────
+  // Full marks while the shadow this project adds stays under the acceptable
+  // threshold, zero once it passes the serious one, straight line between.
+  satisfaction(result) {
+    const kb = environmentalAgent.knowledge;
+    const added = result.worst ? result.worst.addedByDesignPercent : 0;
+
+    if (added <= kb.acceptableShadowPercent) return 100;
+    if (added >= kb.seriousShadowPercent) return 0;
+
+    const span = kb.seriousShadowPercent - kb.acceptableShadowPercent;
+    return Math.round(100 * (1 - (added - kb.acceptableShadowPercent) / span));
+  },
+
   // ── Demo mode ──────────────────────────────────────────────────────────────
   // Real numbers from the tool, pre-written wording.
   demo(result, state) {

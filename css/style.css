@@ -383,6 +383,35 @@ body {
   border-top-color: var(--agent-color);
 }
 
+/* ── Convergence charts ───────────────────────────────────────────────────── */
+/* A strip under the stage: where the design stands now, and how it got there. */
+
+.charts {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 14px;
+  padding: 8px 14px;
+  background: var(--panel-alt);
+  border-top: 1px solid var(--border);
+}
+
+.chart { display: flex; flex-direction: column; min-width: 0; }
+.chart-wide { flex: 1; }
+
+.chart h3 {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: normal;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.chart-body { flex: 1; min-height: 0; display: flex; }
+
+.chart-svg { display: block; height: 132px; width: auto; }
+.chart-wide .chart-svg { width: 100%; height: 132px; }
+
 /* ── Debug panel (milestone 2) ────────────────────────────────────────────── */
 
 .tool-block { margin-bottom: 10px; }

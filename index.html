@@ -49,6 +49,7 @@
       <div id="office"></div>
     </div>
 
+    <div id="charts"></div>
     <footer class="stage-note">
       Drag to orbit &middot; scroll to zoom &middot; right-drag to pan.
       The park is north of the site, which is where shadows fall.
@@ -65,12 +66,14 @@
   import { initPanel } from './ui/panel.js';
   import { initDebug } from './ui/debug.js';
   import { initOffice } from './ui/office.js';
+  import { initCharts } from './ui/charts.js';
   import { initConversation } from './ui/conversation.js';
 
   initViewport(document.getElementById('viewport'));
   initPanel(document.getElementById('panel'));
   initDebug(document.getElementById('debug'));
   initOffice(document.getElementById('office'));
+  initCharts(document.getElementById('charts'));
   initConversation(document.getElementById('agents'));
 </script>
 

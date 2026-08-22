@@ -54,6 +54,12 @@ reject it. Nothing changes the design except you.
 Press **Run** in the Tools panel to call any tool by hand and see the raw
 numbers. They exist whether or not the agents do.
 
+Under the stage, two charts read the history. **Now** is a radar: one axis per
+agent, showing how well the current design meets each one's goal. **Convergence**
+plots those scores round by round, with a dashed mean. They answer the question
+the transcript cannot — is the argument actually going anywhere, and who is
+still losing?
+
 The consultants are not rows in a chat log. They stand at desks in the
 Multi-Agents Design Lab, and when one speaks it steps forward and says its line.
 There are six desks: three are taken, three are waiting for the agents you
@@ -64,11 +70,14 @@ write.
 ## Write your own agent
 
 1. Copy `agents/_template.js` to `agents/yourname.js`
-2. Edit the four marked sections, and nothing else:
+2. Edit the marked sections, and nothing else:
    - **ROLE** — one sentence: who is this?
    - **KNOWLEDGE BASE** — inline JSON: the only facts it may rely on
    - **GOAL** — one sentence: what is it trying to achieve?
    - **TOOL** — one pure function: state in, numbers with units out
+   - **GOAL, AS A NUMBER** — the same goal scored 0 to 100, which is what puts
+     your agent on the radar and the convergence graph. Optional: leave it out
+     and your agent still argues, it just does not appear on the charts.
 3. Add two lines to `agents/index.js`:
    ```js
    import { yourAgent } from './yourname.js';
@@ -95,16 +104,19 @@ at it, or leave it out and your agent gets a coloured initial.
 
 ```
 index.html          the three-panel shell
-core/site.js        the fixed context: site, park, neighbour
+core/site.js        the fixed context: site, park, surrounding blocks
 core/state.js       the design world, and the only place it changes
 core/parameters.js  what agents are allowed to argue about, and the legal range
 core/negotiation.js the round protocol
+core/history.js     per-round satisfaction scores, for the charts
 core/log.js         the decision log
 tools/              the analysis functions. No language model in this folder.
 agents/             one file per agent. Start with _template.js.
 api/gemini.js       the one place this project talks to a model
 view/sun.js         solar position (NOAA), pure maths
 view/viewport.js    the Three.js scene
+ui/office.js        the Multi-Agents Design Lab
+ui/charts.js        radar and convergence, hand-written SVG
 ui/                 panels
 ```
 

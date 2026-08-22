@@ -18,6 +18,7 @@ import { checkValue, snapValue, getParameter } from './parameters.js';
 import { askForJSON, hasApiKey } from '../api/gemini.js';
 import { shadowAnalysis } from '../tools/shadowAnalysis.js';
 import { environmentalAgent } from '../agents/environmental.js';
+import { recordRound } from './history.js';
 
 let roundNumber = 0;
 let running = false;
@@ -65,12 +66,20 @@ export async function runRound({ onStatus, onMessage, onProposal }) {
 
     // ── 2. Opening arguments ─────────────────────────────────────────────────
     const opening = [];
+    const scores = {};
 
     for (const agent of AGENTS) {
       onStatus(`${agent.name} is running ${agent.tool.name}…`);
 
       const result = agent.tool.run(state, context);
       const evidence = agent.tool.summarise(result);
+
+      // Each agent scores the design against its own goal. This is what the
+      // radar and the convergence graph plot. An agent without a satisfaction
+      // function simply does not appear on them.
+      if (typeof agent.satisfaction === 'function') {
+        scores[agent.id] = clampScore(agent.satisfaction(result));
+      }
 
       let reply;
       try {
@@ -85,6 +94,9 @@ export async function runRound({ onStatus, onMessage, onProposal }) {
       opening.push({ agent, reply, evidence, result });
       onMessage({ agent, text: reply.argument, evidence, kind: 'argument' });
     }
+
+    // The scores describe the design as it stood at the start of this round.
+    recordRound(roundNumber, scores);
 
     // ── 3. One reply round, then final proposals ─────────────────────────────
     for (const entry of opening) {
@@ -202,6 +214,13 @@ function buildUserPrompt(agent, evidence, otherArguments) {
   }
 
   return parts.join('\n');
+}
+
+/** Keep a satisfaction score inside 0-100 whatever an agent returns. */
+function clampScore(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, Math.round(n)));
 }
 
 // ── Turning a demo response into the same shape as a live one ────────────────
