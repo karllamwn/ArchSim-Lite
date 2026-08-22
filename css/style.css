@@ -106,25 +106,20 @@ body {
   overflow: hidden;       /* the canvas must never make this column taller */
 }
 
-/* The design and the people arguing about it, side by side. The office
-   backdrop is roughly 4:3, so it wants a squarish half rather than a wide
-   letterbox strip. */
+/* The design on the left, the room on the right. The lab backdrop is a portrait
+   0.67:1, so it wants a tall column: the office takes the full height and its
+   width is derived from that, which is what lets the room fill its pane exactly
+   instead of floating in empty bands. The 3D view takes whatever is left. */
 .stage-split {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr auto;
 }
 
-/* Side by side is the normal case: the 4:3 room fills a half-width pane far
-   better than it fills a wide shallow strip, where it would sit marooned
-   between two empty bands. Only on a genuinely narrow window is stacking the
-   lesser evil. */
-@media (max-width: 1150px) {
-  .stage-split {
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr 320px;
-  }
+/* Too narrow for two columns: stack, and cap the room by height instead. */
+@media (max-width: 1100px) {
+  .stage-split { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
 }
 
 .viewport { flex: 1; min-height: 0; position: relative; }
@@ -261,31 +256,37 @@ body {
    speaks it steps forward and the others dim. Static by design — see
    ui/office.js for why there is no walking. */
 
+/* The pane takes the backdrop's proportions, so the room fills it edge to edge
+   and the figure percentages line up with the desks exactly. Height comes from
+   the column, width follows from the ratio. */
 .office {
   position: relative;
-  min-width: 0;
-  min-height: 0;
+  height: 100%;
+  aspect-ratio: 900 / 1342;
   overflow: hidden;
   border-left: 1px solid var(--border);
 }
 
-@media (max-width: 1150px) {
-  .office { border-left: none; border-top: 1px solid var(--border); }
+@media (max-width: 1100px) {
+  .office {
+    height: auto;
+    width: 100%;
+    max-height: 46vh;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
 }
 
-/* The room keeps the backdrop's own proportions and is fitted inside the pane
-   by ui/office.js. CSS alone cannot do "shrink to fit while preserving ratio":
-   aspect-ratio plus max-height clamps the height without re-deriving the width.
-   Absolutely positioned, so its size can never feed back into the layout.
-   Figures sit at percentages of this box, so they stay at their desks whatever
-   shape the window is. */
 .office-room {
   position: absolute;
+  inset: 0;
   background-image: url('../assets/office/lab.png');
   background-size: 100% 100%;
   image-rendering: pixelated;
-  border: 1px solid var(--border);
-  border-radius: 4px;
+
+  /* Makes cqw available below, so the consultants scale with the room instead
+     of shrinking away on a large display. */
+  container-type: size;
 }
 
 /* A light vignette so the room settles into the dark interface without
@@ -313,21 +314,25 @@ body {
   z-index: 3;
 }
 
+/* Sized as a share of the room rather than in pixels, so a consultant is the
+   same size relative to the desks on any display. */
 .figure-art {
   display: block;
-  width: 46px;
+  width: 8.5cqw;
+  min-width: 30px;
   height: auto;
   image-rendering: pixelated;
-  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.55));
 }
 
 .figure-letter {
-  width: 40px;
-  height: 40px;
+  width: 8.5cqw;
+  min-width: 30px;
+  aspect-ratio: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 5cqw;
   color: var(--agent-color);
   background: var(--bg1);
   border: 2px solid var(--agent-color);

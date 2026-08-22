@@ -1,37 +1,34 @@
 // ui/office.js — the Multi-Agents Design Lab.
 //
 // The consultants are not rows in a chat log. They stand at desks in a room,
-// and when one speaks it steps forward and says its line out loud. That is the
-// argument the project is making, made visible: disciplinary reasoning has a
-// body and a place, not just a function signature.
+// and when one speaks its nameplate lights up and it says its line out loud.
+// That is the argument the project makes, made visible: disciplinary reasoning
+// has a body and a place, not just a function signature.
 //
-// Deliberately static. There is no walking, no collision, no game engine. An
-// agent you write yourself gets a desk automatically, and needs no artwork —
-// which is the difference between a workshop where students add agents and one
-// where they first have to draw a walk cycle.
+// The backdrop is the empty lab, so each agent is drawn at its desk: the pixel
+// portrait if it has one, otherwise a coloured initial. That fallback is why a
+// student can add an agent without drawing anything.
+//
+// Deliberately static. No walking, no collision, no game engine.
 
 import { AGENTS } from '../agents/index.js';
 
-// The backdrop's own proportions. The room box is fitted to these inside
-// whatever space the pane has, letterboxed rather than stretched or cropped.
-const ROOM_ASPECT = 1400 / 789;
-const ROOM_PADDING = 10;   // px of breathing room inside the pane
-
-// Where each consultant stands, as percentages of the backdrop, so the room
-// scales with the pane. These line up with the six desks in the art: the front
-// row first, then the back row. Agents are seated in the order they appear in
-// agents/index.js, which leaves three desks free for the ones students write.
-// Past six, they gather at the meeting table on the right.
+// Where each consultant stands, as percentages of the backdrop. Six desks in
+// three rows of two, read left to right, top to bottom. Three are taken by the
+// built-in agents and three are waiting for the ones students write.
+// `top` is where the consultant's FEET land, in front of the chair rather than
+// on the desk, so the figure reads as standing at the workstation.
 const DESKS = [
-  { left: 11,   top: 60 },
-  { left: 35.5, top: 60 },
-  { left: 63,   top: 60 },
-  { left: 11,   top: 93 },
-  { left: 35.5, top: 93 },
-  { left: 63,   top: 93 }
+  { left: 27.8, top: 38.5 },
+  { left: 71.0, top: 38.0 },
+  { left: 27.2, top: 57.0 },
+  { left: 70.6, top: 58.0 },
+  { left: 27.8, top: 76.5 },
+  { left: 69.4, top: 77.0 }
 ];
 
-const MEETING_TABLE = { left: 88, top: 62 };
+// Past the six desks, agents gather round the meeting table at the foot.
+const MEETING_TABLE = { left: 50, top: 88 };
 
 let figures = new Map();   // agent id -> { figure, bubble }
 let roomEl = null;
@@ -53,8 +50,8 @@ export function initOffice(container) {
 
   AGENTS.forEach((agent, i) => {
     const spot = DESKS[i] ?? {
-      left: MEETING_TABLE.left + ((i - DESKS.length) % 2 ? 5 : -5),
-      top: MEETING_TABLE.top + Math.floor((i - DESKS.length) / 2) * 14
+      left: MEETING_TABLE.left + ((i - DESKS.length) - 1) * 13,
+      top: MEETING_TABLE.top
     };
 
     const figure = document.createElement('div');
@@ -64,7 +61,6 @@ export function initOffice(container) {
     figure.style.setProperty('--agent-color', agent.color);
     figure.title = `${agent.name} — ${agent.goal}`;
 
-    // Speech bubble, hidden until this agent speaks.
     const bubble = document.createElement('div');
     bubble.className = 'bubble';
     figure.appendChild(bubble);
@@ -91,37 +87,11 @@ export function initOffice(container) {
     room.appendChild(figure);
     figures.set(agent.id, { figure, bubble });
   });
-
-  // Keep the room fitted to the pane. Safe to observe: the room is absolutely
-  // positioned, so changing its size cannot change the pane's size.
-  const fit = () => fitRoom(container, room);
-  new ResizeObserver(fit).observe(container);
-  fit();
-}
-
-/** Centre the largest box of the backdrop's proportions that fits in the pane. */
-function fitRoom(pane, room) {
-  const availableWidth = pane.clientWidth - ROOM_PADDING * 2;
-  const availableHeight = pane.clientHeight - ROOM_PADDING * 2;
-  if (availableWidth <= 0 || availableHeight <= 0) return;
-
-  // Try full width first; if that is too tall, the height is the limit instead.
-  let width = availableWidth;
-  let height = width / ROOM_ASPECT;
-  if (height > availableHeight) {
-    height = availableHeight;
-    width = height * ROOM_ASPECT;
-  }
-
-  room.style.width = `${Math.round(width)}px`;
-  room.style.height = `${Math.round(height)}px`;
-  room.style.left = `${Math.round((pane.clientWidth - width) / 2)}px`;
-  room.style.top = `${Math.round((pane.clientHeight - height) / 2)}px`;
 }
 
 /**
- * Make one agent speak. It steps forward, the others dim, and its line appears
- * above its head.
+ * Make one agent speak. Its nameplate lifts, the others dim, and its line
+ * appears above its head.
  *
  * @param {object} agent
  * @param {string} text     what it says
