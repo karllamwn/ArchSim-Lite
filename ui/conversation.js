@@ -2,10 +2,11 @@
 // accept or reject each proposal, and watch the decision log fill up.
 
 import { state, updateVolume } from '../core/state.js';
-import { runRound, isRunning, currentRound } from '../core/negotiation.js';
+import { runRound, isRunning, currentRound, askAgent, ASK_TOPICS } from '../core/negotiation.js';
 import { getApiKey, setApiKey, hasApiKey } from '../api/gemini.js';
 import { record, subscribeLog, describe, toText } from '../core/log.js';
 import { formatValue } from '../core/parameters.js';
+import { AGENTS } from '../agents/index.js';
 import { speak, quiet } from './office.js';
 
 let feed;          // the scrolling conversation
@@ -24,6 +25,8 @@ export function initConversation(container) {
   feed = document.createElement('div');
   feed.className = 'conversation';
   container.appendChild(feed);
+
+  buildAskSection(container);
 
   buildLogSection(container);
 
@@ -63,6 +66,110 @@ function buildKeySection(container) {
   section.appendChild(modeNote);
 }
 
+// ── Ask an agent ─────────────────────────────────────────────────────────────
+// A round is the consultants talking among themselves. This is the architect
+// walking over to one desk and asking a question — the other half of the
+// consultation, and the reason the designer is in the room rather than just
+// approving what comes out of it.
+
+let askTarget = null;   // which agent is being asked
+
+function buildAskSection(container) {
+  const section = document.createElement('section');
+  section.className = 'panel-section';
+
+  const heading = document.createElement('h2');
+  heading.textContent = 'Ask a consultant';
+  section.appendChild(heading);
+
+  // Who to ask.
+  const whoRow = document.createElement('div');
+  whoRow.className = 'tab-row';
+  const whoButtons = AGENTS.map(agent => {
+    const b = document.createElement('button');
+    b.className = 'tab';
+    b.textContent = agent.name.slice(0, 5);
+    b.title = agent.name;
+    b.style.setProperty('--agent-color', agent.color);
+    b.onclick = () => {
+      askTarget = askTarget === agent ? null : agent;
+      whoButtons.forEach(x => x.el.classList.toggle('tab-on', x.agent === askTarget));
+      refreshAskState();
+    };
+    whoRow.appendChild(b);
+    return { agent, el: b };
+  });
+  section.appendChild(whoRow);
+
+  // The three standard questions, which work with or without a key.
+  const topicRow = document.createElement('div');
+  topicRow.className = 'button-row';
+  const topicButtons = ASK_TOPICS.map(topic => {
+    const b = document.createElement('button');
+    b.className = 'btn btn-small';
+    b.textContent = topic.label;
+    b.onclick = () => ask(topic.question, topic.id);
+    topicRow.appendChild(b);
+    return b;
+  });
+  section.appendChild(topicRow);
+
+  // Free text, live mode only.
+  const freeRow = document.createElement('div');
+  freeRow.className = 'key-row';
+  freeRow.style.marginTop = '6px';
+
+  const input = document.createElement('input');
+  input.className = 'key-input';
+  input.placeholder = 'Ask anything (needs a key)';
+  input.onkeydown = e => { if (e.key === 'Enter') ask(input.value.trim(), null, input); };
+  freeRow.appendChild(input);
+
+  const send = document.createElement('button');
+  send.className = 'btn btn-small';
+  send.textContent = 'Ask';
+  send.onclick = () => ask(input.value.trim(), null, input);
+  freeRow.appendChild(send);
+
+  section.appendChild(freeRow);
+  container.appendChild(section);
+
+  refreshAskState = () => {
+    const ready = askTarget !== null;
+    topicButtons.forEach(b => { b.disabled = !ready; });
+    const live = hasApiKey();
+    input.disabled = !ready || !live;
+    send.disabled = !ready || !live;
+    input.placeholder = live
+      ? (ready ? `Ask ${askTarget.name} anything` : 'Choose a consultant first')
+      : 'Free questions need an API key';
+  };
+  refreshAskState();
+}
+
+// Reassigned by buildAskSection once its controls exist.
+let refreshAskState = () => {};
+
+async function ask(question, topicId, input) {
+  if (!askTarget || !question || isRunning()) return;
+
+  addMessage({
+    agent: { id: 'designer', name: 'You', color: 'var(--designer)' },
+    text: question,
+    kind: 'question'
+  });
+  if (input) input.value = '';
+
+  try {
+    const answer = await askAgent(askTarget, question, topicId);
+    addMessage({ agent: askTarget, text: answer.text, evidence: answer.evidence, kind: 'answer' });
+    speak(askTarget, answer.text);
+    quiet();
+  } catch (error) {
+    addMessage({ agent: askTarget, text: error.message, kind: 'error' });
+  }
+}
+
 function refreshMode() {
   const live = hasApiKey();
 
@@ -75,6 +182,8 @@ function refreshMode() {
   }
 
   // Mirror it in the top bar, where it is visible from across a room.
+  refreshAskState();
+
   const chip = document.getElementById('modeChip');
   if (chip) {
     chip.textContent = live ? 'live' : 'demo';

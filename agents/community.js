@@ -97,6 +97,40 @@ export const communityAgent = {
     return result.overallSatisfaction;
   },
 
+  // ── Demo answers ───────────────────────────────────────────────────────────
+  demoAnswer(topic, result, state) {
+    const kb = communityAgent.knowledge;
+    const lowest = result.lowestConcern;
+
+    if (topic === 'evidence') {
+      const lines = result.concerns.map(c =>
+        `${c.label.toLowerCase()} ${c.measured} ${c.unit} scoring ${c.satisfaction}/100`
+      ).join(', ');
+      return `surveyScore, weighing ${result.concerns.length} concerns from `
+           + `${result.respondents} respondents: ${lines}. Overall `
+           + `${result.overallSatisfaction}/100. This is ${result.disclaimer}.`;
+    }
+
+    if (topic === 'threshold') {
+      return `${kb.satisfactionFloor} out of 100 overall. Below that I argue. The weights `
+           + `come from how many people raised each concern — shadow on the park carries `
+           + `${result.concerns[0].weight}, and ${result.concerns[0].respondentsRaising} of `
+           + `${result.respondents} raised it. Again: ${result.disclaimer}.`;
+    }
+
+    if (topic === 'remedy') {
+      if (result.overallSatisfaction >= kb.satisfactionFloor) {
+        return `Nothing needed. ${result.overallSatisfaction}/100 clears my floor of `
+             + `${kb.satisfactionFloor}.`;
+      }
+      return `Work on ${lowest.label.toLowerCase()} and nothing else. It scores `
+           + `${lowest.satisfaction}/100 and carries weight ${lowest.weight}, so it is `
+           + `dragging the total down on its own. Fixing the other two would barely move `
+           + `the number.`;
+    }
+    return null;
+  },
+
   // ── Demo reply ─────────────────────────────────────────────────────────────
   demoReply(result, state, others) {
     const kb = communityAgent.knowledge;

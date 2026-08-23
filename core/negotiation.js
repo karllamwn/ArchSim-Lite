@@ -167,6 +167,77 @@ export async function runRound({ onStatus, onMessage, onProposal }) {
 
 // ── Talking to the model ─────────────────────────────────────────────────────
 
+// ── Consultation: the designer asks, one agent answers ───────────────────────
+//
+// The other half of the negotiation. A round is the agents talking among
+// themselves; this is the architect walking over to one desk and asking a
+// question. Same rule applies: the agent answers from its own tool result and
+// its own knowledge base, and from nothing else.
+
+/** The three questions worth asking any agent, whatever discipline it covers. */
+export const ASK_TOPICS = [
+  { id: 'evidence',  label: 'Your evidence?',        question: 'What measurement are you basing that on?' },
+  { id: 'threshold', label: 'What is your limit?',   question: 'What threshold are you holding the design to, and where does it come from?' },
+  { id: 'remedy',    label: 'What would satisfy you?', question: 'What change would bring this within your limit?' }
+];
+
+/**
+ * Ask one agent a question.
+ *
+ * @param {object} agent
+ * @param {string} question   free text in live mode, or an ASK_TOPICS question
+ * @param {string} [topicId]  set when the question came from a quick-ask chip,
+ *                            which is what makes an answer possible without a key
+ * @returns {Promise<{text: string, evidence: string, kind: string}>}
+ */
+export async function askAgent(agent, question, topicId) {
+  // Measure first, exactly as a round does. An answer must rest on the design
+  // as it stands right now, not on whatever the last round happened to see.
+  const context = {
+    shadow: shadowAnalysis(state, environmentalAgent.knowledge.testTimes)
+  };
+  const result = agent.tool.run(state, context);
+  const evidence = agent.tool.summarise(result);
+
+  if (hasApiKey()) {
+    const reply = await askForJSON({
+      system: buildSystemPrompt(agent),
+      prompt: [
+        `Current reading from your tool ${agent.tool.name}:`,
+        evidence,
+        '',
+        'The architect asks you directly:',
+        question,
+        '',
+        'Answer in two or three sentences. Cite the numbers above. Do not propose',
+        'a parameter change here — this is a question, not a negotiation round.'
+      ].join('\n'),
+      schema: {
+        type: 'object',
+        properties: { answer: { type: 'string' } },
+        required: ['answer']
+      },
+      validate: r => (typeof r.answer === 'string' && r.answer.trim().length > 10
+        ? null : 'The answer was empty or too short.')
+    });
+    return { text: reply.answer, evidence, kind: 'answer' };
+  }
+
+  // Demo mode. Free text cannot be answered without a model, but the three
+  // standard questions can be, from real numbers.
+  if (topicId && typeof agent.demoAnswer === 'function') {
+    const text = agent.demoAnswer(topicId, result, state);
+    if (text) return { text, evidence, kind: 'answer' };
+  }
+
+  return {
+    text: 'In demo mode I can only answer the three standard questions. '
+        + 'Add a Gemini API key above and ask me anything.',
+    evidence,
+    kind: 'answer'
+  };
+}
+
 async function askLive(agent, evidence, otherArguments) {
   const system = buildSystemPrompt(agent);
   const prompt = buildUserPrompt(agent, evidence, otherArguments);

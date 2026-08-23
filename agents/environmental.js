@@ -87,6 +87,43 @@ export const environmentalAgent = {
     return Math.round(100 * (1 - (added - kb.acceptableShadowPercent) / span));
   },
 
+  // ── Demo answers ───────────────────────────────────────────────────────────
+  demoAnswer(topic, result, state) {
+    const kb = environmentalAgent.knowledge;
+    const worst = result.worst;
+    if (!worst) return 'The sun is below the horizon at every test time, so there is nothing to measure.';
+
+    if (topic === 'evidence') {
+      return `shadowAnalysis, sampling the park at ${result.sampleCount} points against `
+           + `${result.contextBuildingCount} existing buildings. Worst moment is `
+           + `${worst.label}: ${worst.shadowedPercent}% of the park shaded, `
+           + `${worst.existingPercent}% of it by blocks that were here first, so `
+           + `${worst.addedByDesignPercent}% is this project's. Sun altitude `
+           + `${worst.sunAltitude}°.`;
+    }
+
+    if (topic === 'threshold') {
+      return `${kb.acceptableShadowPercent}% of the park at any test time, measured on what `
+           + `this project ADDS rather than the total — shading that would happen anyway is `
+           + `not the design's fault. Above ${kb.seriousShadowPercent}% I argue hard. Test `
+           + `times are the equinoxes and the winter solstice, which is common municipal `
+           + `practice; the percentages are teaching values, not a bylaw.`;
+    }
+
+    if (topic === 'remedy') {
+      if (worst.addedByDesignPercent <= kb.acceptableShadowPercent) {
+        return `Nothing. ${worst.addedByDesignPercent}% is already under my `
+             + `${kb.acceptableShadowPercent}% limit.`;
+      }
+      const tallest = state.volumes.reduce((a, b) =>
+        (b.floors * b.floorHeight > a.floors * a.floorHeight ? b : a));
+      return `Height, on volume ${tallest.id}. At a ${worst.sunAltitude}° winter sun every `
+           + `metre of height throws a long shadow north into the park. Moving the volume `
+           + `south helps a little; rotating it barely helps at all.`;
+    }
+    return null;
+  },
+
   // ── Demo reply ─────────────────────────────────────────────────────────────
   demoReply(result, state, others) {
     const kb = environmentalAgent.knowledge;

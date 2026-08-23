@@ -90,6 +90,46 @@ export const architectAgent = {
     return Math.max(0, Math.min(100, Math.round(score)));
   },
 
+  // ── Demo answers ───────────────────────────────────────────────────────────
+  // What this agent says when the architect walks over and asks directly.
+  demoAnswer(topic, result, state) {
+    const issues = result.volumes.flatMap(v =>
+      v.setbackIssues.map(i => `${v.id} is ${i.shortBy} m short on the ${i.side}`)
+    );
+    const tooClose = result.pairs.filter(p => p.overlap || p.tooClose);
+
+    if (topic === 'evidence') {
+      return `layoutCheck, run on the current massing. ${result.volumes.length} volume(s), `
+           + `${result.siteCoveragePercent}% site coverage, ${result.totalGFA} m² of floor area, `
+           + `${result.violationCount} rule issue(s). `
+           + (issues.length ? `Specifically: ${issues.join('; ')}.`
+                            : `Every volume sits inside its setbacks.`);
+    }
+
+    if (topic === 'threshold') {
+      const s = architectAgent.knowledge.setbacks;
+      return `Four rules, all from my knowledge base: setbacks of ${s.north} m north, `
+           + `${s.south} m south, ${s.east} m east, ${s.west} m west; at least `
+           + `${architectAgent.knowledge.minSpacing} m between volumes; nothing over `
+           + `${architectAgent.knowledge.maxHeight} m; coverage under `
+           + `${result.maxCoveragePercent}%. They are teaching values for this exercise, `
+           + `not a real bylaw.`;
+    }
+
+    if (topic === 'remedy') {
+      if (issues.length) return `Move the volume. ${issues.join('; ')} — shifting it off `
+                              + `that edge clears the rule without losing any floor area.`;
+      if (tooClose.length) return `Separate the volumes. ${tooClose[0].between.join(' and ')} are `
+                                + `${tooClose[0].gap} m apart and need ${tooClose[0].requiredGap} m.`;
+      if (result.exceedsMaxCoverage) return `Reduce a footprint. Coverage is `
+                                          + `${result.siteCoveragePercent}% against a `
+                                          + `${result.maxCoveragePercent}% limit.`;
+      return `Nothing needs to change for me. The layout is already compliant, so I am `
+           + `not the constraint this round.`;
+    }
+    return null;
+  },
+
   // ── Demo reply ─────────────────────────────────────────────────────────────
   // Answers the others once. This agent is the counterweight: when everyone
   // else wants the building smaller, somebody has to speak for the brief.
