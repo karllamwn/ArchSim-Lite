@@ -19,6 +19,7 @@ import { askForJSON, hasApiKey } from '../api/gemini.js';
 import { shadowAnalysis } from '../tools/shadowAnalysis.js';
 import { environmentalAgent } from '../agents/environmental.js';
 import { recordRound } from './history.js';
+import { trace, setTraceStatus, TRACE } from './trace.js';
 
 let roundNumber = 0;
 let running = false;
@@ -62,6 +63,7 @@ export async function runRound({ onStatus, onMessage, onProposal }) {
 
   try {
     onStatus(`Round ${roundNumber} — ${live ? 'live' : 'demo'} mode`);
+    trace('system', TRACE.META, `Round ${roundNumber} begins — ${live ? 'live' : 'demo'} mode`);
 
     // ── 1. Measure once, share with everyone ─────────────────────────────────
     const context = {
@@ -75,14 +77,22 @@ export async function runRound({ onStatus, onMessage, onProposal }) {
     for (const agent of AGENTS) {
       onStatus(`${agent.name} is running ${agent.tool.name}…`);
 
+      setTraceStatus(agent.id, 'thinking');
+      trace(agent.id, TRACE.SYS, `${agent.role} Goal: ${agent.goal}`);
+      trace(agent.id, TRACE.SYS,
+        `May propose: ${agent.canPropose.join(', ')}. May not compute; must cite the tool.`);
+
+      trace(agent.id, TRACE.EVAL, `call ${agent.tool.name}(state)`);
       const result = agent.tool.run(state, context);
       const evidence = agent.tool.summarise(result);
+      trace(agent.id, TRACE.EVAL, `returned: ${evidence}`);
 
       // Each agent scores the design against its own goal. This is what the
       // radar and the convergence graph plot. An agent without a satisfaction
       // function simply does not appear on them.
       if (typeof agent.satisfaction === 'function') {
         scores[agent.id] = clampScore(agent.satisfaction(result));
+        trace(agent.id, TRACE.EVAL, `satisfaction against own goal: ${scores[agent.id]}/100`);
       }
 
       let reply;
@@ -91,9 +101,21 @@ export async function runRound({ onStatus, onMessage, onProposal }) {
           ? await askLive(agent, evidence, null)
           : toReply(agent.demo(result, state));
       } catch (error) {
+        trace(agent.id, TRACE.ERR, error.message);
+        setTraceStatus(agent.id, 'idle');
         onMessage({ agent, text: error.message, evidence, kind: 'error' });
         continue;
       }
+
+      trace(agent.id, TRACE.THINK, reply.argument);
+      if (reply.wantsChange) {
+        const asked = isChoice(reply.parameter) ? reply.choice : reply.value;
+        trace(agent.id, TRACE.PARAM,
+          `wants ${reply.volumeId}.${reply.parameter} = ${asked} — ${reply.reason}`);
+      } else {
+        trace(agent.id, TRACE.OUT, 'no change requested');
+      }
+      setTraceStatus(agent.id, 'active');
 
       opening.push({ agent, reply, evidence, result });
       onMessage({ agent, text: reply.argument, evidence, result, kind: 'argument' });
@@ -126,12 +148,17 @@ export async function runRound({ onStatus, onMessage, onProposal }) {
       if (others.length === 0) continue;
 
       onStatus(`${agent.name} is responding…`);
+      setTraceStatus(agent.id, 'thinking');
+      trace(agent.id, TRACE.SYS,
+        `reading ${others.length} other argument(s): ${others.map(o => o.name).join(', ')}`);
 
       if (live) {
         try {
           const transcript = others.map(o => `${o.name}: ${o.argument}`).join('\n');
           const final = await askLive(agent, evidence, transcript);
           entry.reply = final;   // a live agent may change its mind here
+          trace(agent.id, TRACE.THINK, final.argument);
+          setTraceStatus(agent.id, 'active');
           onMessage({ agent, text: final.argument, evidence, result: entry.result, kind: 'reply' });
         } catch (error) {
           onMessage({ agent, text: error.message, evidence, kind: 'error' });
@@ -141,7 +168,11 @@ export async function runRound({ onStatus, onMessage, onProposal }) {
         // pre-written, and rewriting the proposal here would hide which agent
         // actually asked for the change.
         const text = agent.demoReply(result, state, others);
-        if (text) onMessage({ agent, text, evidence, kind: 'reply' });
+        if (text) {
+          trace(agent.id, TRACE.THINK, text);
+          onMessage({ agent, text, evidence, kind: 'reply' });
+        }
+        setTraceStatus(agent.id, 'active');
       }
     }
 
@@ -152,8 +183,12 @@ export async function runRound({ onStatus, onMessage, onProposal }) {
 
       const proposal = validateProposal(agent, entry.reply);
       if (proposal.ok) {
+        trace(agent.id, TRACE.OUT,
+          `proposal passed validation: ${proposal.value.volumeId}.${proposal.value.parameter} `
+          + `${proposal.value.from} -> ${proposal.value.to}`);
         onProposal({ agent, proposal: proposal.value, evidence, round: roundNumber });
       } else {
+        trace(agent.id, TRACE.ERR, `proposal rejected by validation: ${proposal.error}`);
         onMessage({
           agent,
           text: `Proposal rejected before it reached you: ${proposal.error}`,
@@ -163,6 +198,8 @@ export async function runRound({ onStatus, onMessage, onProposal }) {
       }
     }
 
+    trace('system', TRACE.META, `Round ${roundNumber} complete — awaiting the architect`);
+    for (const agent of AGENTS) setTraceStatus(agent.id, 'idle');
     onStatus(`Round ${roundNumber} complete. Accept or reject, then run another round.`);
   } finally {
     running = false;

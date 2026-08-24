@@ -642,3 +642,116 @@ body { overflow-x: auto; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--bg1); border: 1px solid var(--border); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border); }
+
+
+/* ── Surveillance mode ────────────────────────────────────────────────────── */
+/* A full-screen grid over the workspace: one pane per agent, showing what it
+   was working from rather than what it said. Monospace, because this is a log
+   and it should look like one. */
+
+.surveillance {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+.surveillance[hidden] { display: none; }
+
+.sv-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-alt);
+}
+.sv-title {
+  font-family: var(--pixel);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+.sv-round {
+  font-family: var(--pixel);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.sv-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  /* Grows with the agent roster: three across at the built-in count, and a
+     student's fourth agent takes its own pane without any layout change. */
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  overflow: auto;
+}
+
+.sv-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 190px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.sv-pane-head {
+  flex: 0 0 auto;
+  padding: 7px 9px 3px;
+  font-family: var(--pixel);
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  color: var(--agent-color);
+}
+
+.sv-status {
+  flex: 0 0 auto;
+  padding: 0 9px 5px;
+  font-family: var(--pixel);
+  font-size: 6px;
+  letter-spacing: 0.1em;
+  color: var(--faint);
+  border-bottom: 1px solid var(--border);
+}
+.sv-status-thinking { color: #ffbe6a; }
+.sv-status-active   { color: var(--accent); }
+
+.sv-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 5px 9px;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.sv-line { margin-bottom: 2px; word-break: break-word; }
+.sv-time { color: var(--faint); font-size: 10px; }
+
+/* One colour per kind of line, so a pane can be skimmed for the thing you came
+   looking for: the instruction, the data, the reasoning, or the answer. */
+.sv-sys   { color: #ffbe6a; opacity: 0.75; }
+.sv-eval  { color: #b77cff; opacity: 0.85; }
+.sv-think { color: #6eabff; opacity: 0.9; }
+.sv-out   { color: var(--accent); }
+.sv-param { color: #9df0cf; }
+.sv-err   { color: #ff8aa5; }
+.sv-meta  { color: var(--muted); }
+
+.sv-cursor {
+  display: inline-block;
+  width: 6px;
+  height: 10px;
+  margin-left: 3px;
+  vertical-align: middle;
+  background: var(--accent);
+  animation: svBlink 0.6s steps(1) infinite;
+}
+@keyframes svBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }

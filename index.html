@@ -60,6 +60,9 @@
 
 </main>
 
+<!-- ── Surveillance mode: a full-screen overlay over everything above ───── -->
+<div id="surveillance" hidden></div>
+
 <!-- ── Bottom bar: status and the actions ───────────────────────────────── -->
 <footer class="actionbar">
   <div class="status" id="status">&#9673; READY</div>
@@ -72,12 +75,17 @@
   import { initOffice } from './ui/office.js';
   import { initConversation } from './ui/conversation.js';
   import { initDeliverables } from './ui/deliverables.js';
+  import { initSurveillance, showSurveillance, hideSurveillance } from './ui/surveillance.js';
 
   initViewport(document.getElementById('viewport'));
   initPanel(document.getElementById('metrics'));
   initOffice(document.getElementById('office'));
   initDeliverables(document.getElementById('deliverables'));
   initConversation(document.getElementById('feed'));
+  initSurveillance(document.getElementById('surveillance'));
+
+  document.getElementById('tabSurveillance').onclick = showSurveillance;
+  document.getElementById('tabNegotiation').onclick = hideSurveillance;
 </script>
 
 </body>
