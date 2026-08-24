@@ -9,6 +9,7 @@
 
 import { SITE } from '../core/site.js';
 import { round } from './geometry.js';
+import { baseSlab, planArea } from '../core/form.js';
 
 /**
  * @param {object} state        the design world from core/state.js
@@ -21,7 +22,7 @@ import { round } from './geometry.js';
  */
 export function surveyScore(state, shadowResult, survey) {
   const tallest = Math.max(...state.volumes.map(v => v.floors * v.floorHeight));
-  const footprintTotal = state.volumes.reduce((sum, v) => sum + v.w * v.d, 0);
+  const footprintTotal = state.volumes.reduce((sum, v) => sum + planArea(baseSlab(v)), 0);
   const coverage = (footprintTotal / (SITE.width * SITE.depth)) * 100;
 
   // The measured value behind each concern, in the concern's own units.

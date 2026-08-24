@@ -8,6 +8,7 @@ import { SITE } from '../core/site.js';
 import {
   volumeToBox, footprintCorners, footprintGap, footprintsOverlap, round
 } from './geometry.js';
+import { baseSlab, planArea, volumeFloorArea } from '../core/form.js';
 
 /**
  * @param {object} state the design world from core/state.js
@@ -18,7 +19,13 @@ import {
  * }}
  */
 export function layoutCheck(state, rules) {
-  const boxes = state.volumes.map(volumeToBox);
+  // Setbacks and spacing are measured against the slab that touches the
+  // ground, which for a podium or a stepped tower is the widest one.
+  const boxes = state.volumes.map(v => {
+    const slab = baseSlab(v);
+    return { x: slab.x, z: slab.z, w: slab.w, d: slab.d,
+             height: v.floors * v.floorHeight, rotation: slab.rotation };
+  });
 
   // ── Each volume against the site edges ─────────────────────────────────────
   const volumes = state.volumes.map((volume, i) => {
@@ -52,8 +59,8 @@ export function layoutCheck(state, rules) {
     return {
       id: volume.id,
       height: round(height),
-      footprintArea: round(volume.w * volume.d, 0),
-      gfa: round(volume.w * volume.d * volume.floors, 0),
+      footprintArea: round(planArea(baseSlab(volume)), 0),
+      gfa: round(volumeFloorArea(volume), 0),
       setbackDistances: {
         north: round(distances.north),
         south: round(distances.south),
@@ -83,10 +90,10 @@ export function layoutCheck(state, rules) {
   }
 
   // ── Whole-site figures ─────────────────────────────────────────────────────
-  const footprintTotal = state.volumes.reduce((sum, v) => sum + v.w * v.d, 0);
+  const footprintTotal = state.volumes.reduce((sum, v) => sum + planArea(baseSlab(v)), 0);
   const siteArea = SITE.width * SITE.depth;
   const coverage = (footprintTotal / siteArea) * 100;
-  const totalGFA = state.volumes.reduce((sum, v) => sum + v.w * v.d * v.floors, 0);
+  const totalGFA = state.volumes.reduce((sum, v) => sum + volumeFloorArea(v), 0);
 
   const violationCount =
     volumes.reduce((n, v) => n + v.setbackIssues.length + (v.exceedsMaxHeight ? 1 : 0), 0) +

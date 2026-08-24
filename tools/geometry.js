@@ -3,6 +3,8 @@
 // If you are writing your own tool for a new agent, these are here for you.
 // Everything works in metres, in the world frame: +X east, +Z south, +Y up.
 
+import { pointInPlan } from '../core/form.js';
+
 const DEG = Math.PI / 180;
 
 /**
@@ -173,4 +175,44 @@ function outlinePoints(box, spacing = 1) {
 export function round(value, decimals = 1) {
   const factor = 10 ** decimals;
   return Math.round(value * factor) / factor;
+}
+
+
+// ── Slabs ────────────────────────────────────────────────────────────────────
+
+/**
+ * Does a ray leaving the ground at (x, z) toward the sun pass through this slab?
+ *
+ * A slab can be an ellipse or a shape with a piece cut out, so there is no
+ * closed-form answer the way there is for a box. Instead: work out where the
+ * ray is inside the slab's height band, then walk that segment testing the plan
+ * shape as it goes. Simple, and it works for any plan a student invents,
+ * because the only thing it asks is "is this point inside".
+ *
+ * @param {number} x world X of the ground point
+ * @param {number} z world Z of the ground point
+ * @param {{x,y,z}} dir unit vector pointing at the sun
+ * @param {object} slab from core/form.js
+ */
+export function rayHitsSlab(x, z, dir, slab) {
+  if (dir.y <= 1e-6) return false;   // sun on the horizon: no useful answer
+
+  // The ray starts a little above ground so a point sitting exactly on the base
+  // plane does not count as a hit.
+  const originY = 0.05;
+  const tEnter = Math.max(0, (slab.y0 - originY) / dir.y);
+  const tExit = (slab.y1 - originY) / dir.y;
+  if (tExit <= tEnter) return false;
+
+  // Step along the segment at a fixed distance in plan, so a tall slab and a
+  // low winter sun get as many samples as they need.
+  const horizontal = Math.hypot(dir.x, dir.z);
+  const span = (tExit - tEnter) * horizontal;
+  const steps = Math.max(2, Math.min(48, Math.ceil(span / 1.2)));
+
+  for (let i = 0; i <= steps; i++) {
+    const t = tEnter + (tExit - tEnter) * (i / steps);
+    if (pointInPlan(x + dir.x * t, z + dir.z * t, slab)) return true;
+  }
+  return false;
 }

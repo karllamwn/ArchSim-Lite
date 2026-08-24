@@ -12,7 +12,18 @@ export const PARAMETERS = [
   { key: 'd',           label: 'Depth',         min: 6,   max: 34, step: 0.5, unit: 'm' },
   { key: 'rotation',    label: 'Rotation',      min: -45, max: 45, step: 1,   unit: '°' },
   { key: 'floors',      label: 'Floors',        min: 1,   max: 24, step: 1,   unit: '' },
-  { key: 'floorHeight', label: 'Floor height',  min: 2.7, max: 5,  step: 0.1, unit: 'm' }
+  { key: 'floorHeight', label: 'Floor height',  min: 2.7, max: 5,  step: 0.1, unit: 'm' },
+
+  // Form controls. These only appear on the panel when the plan or section
+  // they belong to is selected — see PLAN_PARAMS and SECTION_PARAMS in
+  // core/form.js — but an agent may propose any of them at any time, so the
+  // bounds live here with everything else.
+  { key: 'planRatio',    label: 'Cut / void',    min: 0.2, max: 0.7, step: 0.05, unit: '' },
+  { key: 'topScale',     label: 'Top scale',     min: 0.35, max: 1,  step: 0.05, unit: '' },
+  { key: 'podiumFloors', label: 'Podium floors', min: 1,   max: 8,   step: 1,    unit: '' },
+  { key: 'towerRatio',   label: 'Tower ratio',   min: 0.3, max: 0.9, step: 0.05, unit: '' },
+  { key: 'setbackEvery', label: 'Step every',    min: 2,   max: 8,   step: 1,    unit: ' fl' },
+  { key: 'setbackDepth', label: 'Step depth',    min: 0.5, max: 4,   step: 0.5,  unit: 'm' }
 ];
 
 /** Look up one parameter definition by key. Returns undefined if unknown. */

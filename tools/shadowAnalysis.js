@@ -9,7 +9,8 @@
 
 import { SITE, PARK, CONTEXT } from '../core/site.js';
 import { sunVector, sunPosition } from '../view/sun.js';
-import { volumeToBox, rayHitsBox, round } from './geometry.js';
+import { volumeToBox, rayHitsBox, rayHitsSlab, round } from './geometry.js';
+import { volumeToSlabs } from '../core/form.js';
 
 // How far apart the sample points are, in metres. 2 m over a 50x30 m park is
 // 375 points: fine enough to be stable, small enough to run instantly.
@@ -34,7 +35,9 @@ export function shadowAnalysis(state, times) {
   // Everything that can cast a shadow: the volumes being designed, plus the
   // surrounding city, which was there first and shades the park whatever the
   // project does.
-  const designBoxes = state.volumes.map(volumeToBox);
+  // Every band of every volume. A tapered or stepped tower throws a shorter
+  // shadow than its bounding box would, and this is where that shows up.
+  const designSlabs = state.volumes.flatMap(volumeToSlabs);
   const contextBoxes = CONTEXT.map(b => ({
     x: b.x, z: b.z, w: b.width, d: b.depth, height: b.height, rotation: 0
   }));
@@ -67,7 +70,7 @@ export function shadowAnalysis(state, times) {
     for (const point of samples) {
       const byContext = contextBoxes.some(box => rayHitsBox(point.x, point.z, dir, box));
       const byDesign = !byContext &&
-        designBoxes.some(box => rayHitsBox(point.x, point.z, dir, box));
+        designSlabs.some(slab => rayHitsSlab(point.x, point.z, dir, slab));
 
       if (byContext) contextShadowed++;
       if (byContext || byDesign) shadowed++;

@@ -8,6 +8,8 @@
 // functions below, so every change goes through one place and every listener
 // is told about it.
 
+import { volumeFloorArea } from './form.js';
+
 // ── The state ────────────────────────────────────────────────────────────────
 
 export const state = {
@@ -16,7 +18,17 @@ export const state = {
   // w, d  = footprint width (east-west) and depth (north-south), metres
   // rotation = degrees clockwise, 0 = aligned with the site
   volumes: [
-    { id: 'A', x: 0, z: 8, w: 24, d: 16, rotation: 0, floors: 6, floorHeight: 3.2 }
+    {
+      id: 'A', x: 0, z: 8, w: 24, d: 16, rotation: 0, floors: 6, floorHeight: 3.2,
+
+      // Form. `plan` is the footprint seen from above, `section` is how that
+      // footprint changes going up. See core/form.js.
+      plan: 'rect', planRatio: 0.45,
+      section: 'straight',
+      topScale: 0.6,                          // tapered
+      podiumFloors: 2, towerRatio: 0.6,       // podium + tower
+      setbackEvery: 4, setbackDepth: 2        // stepped
+    }
   ],
 
   // When the sun is being simulated. Local solar time: 12:00 is solar noon.
@@ -54,6 +66,18 @@ export function updateVolume(id, patch) {
   notify();
 }
 
+/**
+ * Change a volume's plan shape or section type. These are choices from a fixed
+ * menu rather than numbers, so they do not go through the parameter bounds
+ * check that updateVolume's sliders use.
+ */
+export function setForm(id, patch) {
+  const volume = state.volumes.find(v => v.id === id);
+  if (!volume) return;
+  Object.assign(volume, patch);
+  notify();
+}
+
 /** Change the sun date or time. e.g. updateSun({hour: 15}) */
 export function updateSun(patch) {
   Object.assign(state.sun, patch);
@@ -68,7 +92,12 @@ export function addVolume() {
   const id = ['A', 'B', 'C'].find(letter => !state.volumes.some(v => v.id === letter));
 
   state.volumes.push({
-    id, x: 0, z: -8, w: 18, d: 14, rotation: 0, floors: 4, floorHeight: 3.2
+    id, x: 0, z: -8, w: 18, d: 14, rotation: 0, floors: 4, floorHeight: 3.2,
+    plan: 'rect', planRatio: 0.45,
+    section: 'straight',
+    topScale: 0.6,
+    podiumFloors: 2, towerRatio: 0.6,
+    setbackEvery: 4, setbackDepth: 2
   });
   state.selectedId = id;
   notify();
@@ -98,5 +127,8 @@ export function volumeHeight(volume) {
 
 /** Gross floor area of a volume in m². */
 export function volumeGFA(volume) {
-  return volume.w * volume.d * volume.floors;
+  // Not w x d x floors any more: an ellipse, an L or a courtyard all have less
+  // floor area than their bounding rectangle, and a tapered or stepped tower
+  // loses area as it rises. core/form.js knows the real shape.
+  return volumeFloorArea(volume);
 }

@@ -275,6 +275,10 @@ body { overflow-x: auto; }
 
 .button-row { display: flex; flex-wrap: wrap; gap: 4px; }
 
+/* Four choices in a 186px column will not fit on one line. Two per row keeps
+   every label readable instead of clipping all of them equally. */
+.button-row.pick .btn { flex: 1 1 44%; }
+
 .btn {
   flex: 1;
   min-width: 0;

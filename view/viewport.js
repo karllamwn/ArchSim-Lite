@@ -10,6 +10,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { state, subscribe, volumeHeight } from '../core/state.js';
 import { SITE, PARK, CONTEXT } from '../core/site.js';
 import { sunVector, sunPosition } from './sun.js';
+import { volumeToSlabs } from '../core/form.js';
 
 // ── Colours, in one place so the palette is easy to change ───────────────────
 // Matched to the ArchSim V2 dark theme in css/style.css.
@@ -248,30 +249,86 @@ function updateVolumes(s) {
   volumeGroup.clear();
 
   for (const volume of s.volumes) {
-    const height = volumeHeight(volume);
     const isSelected = volume.id === s.selectedId;
+    const material = new THREE.MeshLambertMaterial({
+      color: isSelected ? COLOR.selected : COLOR.volume
+    });
+    const edgeMaterial = new THREE.LineBasicMaterial({
+      color: isSelected ? 0x0d1716 : 0x6f8a84
+    });
 
-    const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(volume.w, height, volume.d),
-      new THREE.MeshLambertMaterial({
-        color: isSelected ? COLOR.selected : COLOR.volume
-      })
-    );
-    mesh.position.set(volume.x, height / 2, volume.z);
-    mesh.rotation.y = -volume.rotation * Math.PI / 180;   // clockwise in plan
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    volumeGroup.add(mesh);
+    // One mesh per band. core/form.js decides what the bands are, so a podium,
+    // a taper and a stepped tower all arrive here as the same kind of list —
+    // and it is the same list the shadow tool casts rays at.
+    for (const slab of volumeToSlabs(volume)) {
+      const geometry = slabGeometry(slab);
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(slab.x, slab.y0, slab.z);
+      mesh.rotation.y = -slab.rotation * Math.PI / 180;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      volumeGroup.add(mesh);
 
-    // A thin outline keeps the edges readable against the dark ground.
-    const edges = new THREE.LineSegments(
-      new THREE.EdgesGeometry(mesh.geometry),
-      new THREE.LineBasicMaterial({ color: isSelected ? 0x0d1716 : 0x6f8a84 })
-    );
-    edges.position.copy(mesh.position);
-    edges.rotation.copy(mesh.rotation);
-    volumeGroup.add(edges);
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial);
+      edges.position.copy(mesh.position);
+      edges.rotation.copy(mesh.rotation);
+      volumeGroup.add(edges);
+    }
   }
+}
+
+/**
+ * Build one band as geometry, sitting on y = 0 so it can be positioned by its
+ * base. Every plan shape goes through THREE.Shape, so adding a plan means
+ * describing its outline once and nothing else changes.
+ */
+function slabGeometry(slab) {
+  const height = slab.y1 - slab.y0;
+  const hw = slab.w / 2;
+  const hd = slab.d / 2;
+
+  const shape = new THREE.Shape();
+
+  if (slab.plan === 'ellipse') {
+    shape.absellipse(0, 0, hw, hd, 0, Math.PI * 2, false, 0);
+
+  } else if (slab.plan === 'lshape') {
+    // A rectangle with one corner quadrant removed.
+    const cutW = slab.w * slab.planRatio;
+    const cutD = slab.d * slab.planRatio;
+    shape.moveTo(-hw, -hd);
+    shape.lineTo(hw, -hd);
+    shape.lineTo(hw, hd - cutD);
+    shape.lineTo(hw - cutW, hd - cutD);
+    shape.lineTo(hw - cutW, hd);
+    shape.lineTo(-hw, hd);
+    shape.closePath();
+
+  } else {
+    shape.moveTo(-hw, -hd);
+    shape.lineTo(hw, -hd);
+    shape.lineTo(hw, hd);
+    shape.lineTo(-hw, hd);
+    shape.closePath();
+
+    if (slab.plan === 'courtyard') {
+      const iw = hw * slab.planRatio;
+      const id = hd * slab.planRatio;
+      const hole = new THREE.Path();
+      hole.moveTo(-iw, -id);
+      hole.lineTo(-iw, id);
+      hole.lineTo(iw, id);
+      hole.lineTo(iw, -id);
+      hole.closePath();
+      shape.holes.push(hole);
+    }
+  }
+
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false });
+  // Shapes are drawn in XY and extruded along +Z; stand it up so the extrusion
+  // runs vertically and the plan lies flat.
+  geometry.rotateX(-Math.PI / 2);
+  return geometry;
 }
 
 

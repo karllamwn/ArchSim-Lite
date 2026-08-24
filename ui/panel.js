@@ -8,12 +8,15 @@
 
 import {
   state, subscribe, updateVolume, updateSun,
-  addVolume, removeVolume, selectVolume,
+  addVolume, removeVolume, selectVolume, setForm,
   volumeHeight, volumeGFA
 } from '../core/state.js';
 import { SITE, PARK, CONTEXT } from '../core/site.js';
 import { sunPosition } from '../view/sun.js';
 import { PARAMETERS as VOLUME_CONTROLS } from '../core/parameters.js';
+import {
+  PLAN_SHAPES, SECTION_TYPES, PLAN_PARAMS, SECTION_PARAMS, volumeToSlabs
+} from '../core/form.js';
 
 import { shadowAnalysis } from '../tools/shadowAnalysis.js';
 import { layoutCheck } from '../tools/layoutCheck.js';
@@ -72,8 +75,38 @@ export function initPanel(container) {
   removeBtn.onclick = () => removeVolume(state.selectedId);
   volumeButtons.appendChild(removeBtn);
 
+  // ── Plan and section ───────────────────────────────────────────────────────
+  // Two menus rather than sliders: they choose a kind of building, not a
+  // quantity. The sliders that belong to each choice appear only when it is
+  // selected, so the panel never shows a control that would do nothing.
+  const planLabel = el('div', 'metric-sub', 'PLAN');
+  params.body.appendChild(planLabel);
+  const planRow = el('div', 'button-row pick');
+  params.body.appendChild(planRow);
+  const planButtons = PLAN_SHAPES.map(shape => {
+    const b = el('button', 'btn btn-small', shape.label);
+    b.onclick = () => setForm(state.selectedId, { plan: shape.id });
+    planRow.appendChild(b);
+    return { b, id: shape.id };
+  });
+
+  const sectionLabel = el('div', 'metric-sub', 'SECTION');
+  params.body.appendChild(sectionLabel);
+  const sectionRow = el('div', 'button-row pick');
+  params.body.appendChild(sectionRow);
+  const sectionButtons = SECTION_TYPES.map(type => {
+    const b = el('button', 'btn btn-small', type.label);
+    b.onclick = () => setForm(state.selectedId, { section: type.id });
+    sectionRow.appendChild(b);
+    return { b, id: type.id };
+  });
+
+  const sizeLabel = el('div', 'metric-sub', 'SIZE & POSITION');
+  params.body.appendChild(sizeLabel);
+
   const sliders = {};
   const sliderLabels = {};
+  const sliderRows = {};
   for (const control of VOLUME_CONTROLS) {
     const row = el('div', 'control');
     const head = el('div', 'control-head');
@@ -93,6 +126,7 @@ export function initPanel(container) {
     params.body.appendChild(row);
     sliders[control.key] = input;
     sliderLabels[control.key] = value;
+    sliderRows[control.key] = row;
   }
 
   // ── Sun controls ───────────────────────────────────────────────────────────
@@ -135,10 +169,27 @@ export function initPanel(container) {
     removeBtn.disabled = s2.volumes.length <= 1;
     addBtn.disabled = s2.volumes.length >= 3;
 
-    // Sliders
+    // Plan and section
+    for (const { b, id } of planButtons) b.classList.toggle('btn-on', (volume.plan ?? 'rect') === id);
+    for (const { b, id } of sectionButtons) b.classList.toggle('btn-on', (volume.section ?? 'straight') === id);
+
+    // Sliders. The form controls only appear when the plan or section they
+    // belong to is the one selected.
+    const relevant = new Set([
+      ...(PLAN_PARAMS[volume.plan ?? 'rect'] ?? []),
+      ...(SECTION_PARAMS[volume.section ?? 'straight'] ?? [])
+    ]);
+    const formKeys = new Set([
+      ...Object.values(PLAN_PARAMS).flat(),
+      ...Object.values(SECTION_PARAMS).flat()
+    ]);
+
     for (const control of VOLUME_CONTROLS) {
       sliders[control.key].value = volume[control.key];
       sliderLabels[control.key].textContent = `${volume[control.key]}${control.unit}`;
+      if (formKeys.has(control.key)) {
+        sliderRows[control.key].style.display = relevant.has(control.key) ? '' : 'none';
+      }
     }
 
     // Sun
@@ -173,6 +224,10 @@ function renderMassing(body, state, volume, layout) {
     layout.exceedsMaxCoverage ? 'warn' : 'good');
 
   sub(body, `VOLUME ${volume.id}`);
+  const slabs = volumeToSlabs(volume);
+  metric(body, 'Plan', PLAN_SHAPES.find(p => p.id === (volume.plan ?? 'rect')).label);
+  metric(body, 'Section', SECTION_TYPES.find(s => s.id === (volume.section ?? 'straight')).label);
+  metric(body, 'Bands', String(slabs.length));
   metric(body, 'Footprint', `${volume.w} × ${volume.d} m`);
   metric(body, 'Floors', String(volume.floors));
   metric(body, 'Height', `${volumeHeight(volume).toFixed(1)} m`);
