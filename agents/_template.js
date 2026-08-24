@@ -45,8 +45,22 @@ export const templateAgent = {
 
   // Which design parameters this agent may propose changes to. The negotiation
   // engine rejects any proposal outside this list, so an agent cannot wander
-  // into someone else\'s discipline.
-  // Available: x, z, w, d, rotation, floors, floorHeight
+  // into someone else's discipline.
+  //
+  // Numbers:  x, z, w, d, rotation, floors, floorHeight
+  //           planRatio, topScale, podiumFloors, towerRatio,
+  //           setbackEvery, setbackDepth
+  // Choices:  plan     rect | ellipse | lshape | courtyard
+  //           section  straight | tapered | podium | stepped
+  //
+  // Worth taking a choice if your discipline cares about shape rather than
+  // size. Switching the section from straight to podium cuts the shadow this
+  // project adds to the park from 44.8% to 28%, which beats losing two whole
+  // floors and costs the architect far less area — so it is also the proposal
+  // most likely to be accepted. You write both kinds the same way, one `value`:
+  //
+  //   { volumeId: 'A', parameter: 'floors',  value: 4,        reason: '...' }
+  //   { volumeId: 'A', parameter: 'section', value: 'podium', reason: '...' }
   canPropose: ['floors'],
 
   // ── 4. TOOL ────────────────────────────────────────────────────────────────
