@@ -1,88 +1,220 @@
-// ui/conversation.js — the right panel: run a round, read the argument,
-// accept or reject each proposal, and watch the decision log fill up.
+// ui/conversation.js — the fourth column: who is in the room, what they just
+// said, and the box the architect types into.
+//
+// Three blocks, matching the V2 workspace: AGENTS (the roster, with each
+// agent's current score), ACTIVITY FEED (the argument as it happens), and
+// AGENT CHAT (ask one of them a question).
 
 import { state, updateVolume } from '../core/state.js';
 import { runRound, isRunning, currentRound, askAgent, ASK_TOPICS } from '../core/negotiation.js';
 import { getApiKey, setApiKey, hasApiKey } from '../api/gemini.js';
-import { record, subscribeLog, describe, toText } from '../core/log.js';
+import { record } from '../core/log.js';
+import { recordLine } from '../core/transcript.js';
+import { subscribeHistory } from '../core/history.js';
 import { formatValue } from '../core/parameters.js';
 import { AGENTS } from '../agents/index.js';
 import { speak, quiet } from './office.js';
+import { captureFrame } from '../view/viewport.js';
 
-let feed;          // the scrolling conversation
-let runButton;
-let modeNote;
+let feed;
+let statusEl;
+let runAction;
+let askTarget = null;
+let refreshChat = () => {};
+const rosterRows = new Map();
 
-/**
- * @param {HTMLElement} container the .panel-right element
- */
 export function initConversation(container) {
   container.innerHTML = '';
 
-  buildKeySection(container);
-  buildRunSection(container);
+  buildRoster(container);
+  buildFeed(container);
+  buildChat(container);
+  buildKeyRow(container);
+  buildActionBar();
 
-  feed = document.createElement('div');
-  feed.className = 'conversation';
-  container.appendChild(feed);
-
-  buildAskSection(container);
-
-  buildLogSection(container);
-
-  addSystemLine('Design the massing, then run a round.');
+  addSystem('Design the massing, then run a round.');
   refreshMode();
 }
 
-// ── Key and mode ─────────────────────────────────────────────────────────────
+// ── 1. The roster ────────────────────────────────────────────────────────────
 
-function buildKeySection(container) {
-  const section = sectionEl(container, 'Mode');
+function buildRoster(container) {
+  const sect = section(container, 'AGENTS');
+  const list = document.createElement('div');
+  list.className = 'roster';
 
-  const row = document.createElement('div');
-  row.className = 'key-row';
+  for (const agent of AGENTS) {
+    const row = document.createElement('div');
+    row.className = 'roster-row';
+    row.style.setProperty('--agent-color', agent.color);
+    row.title = agent.goal;
 
-  const input = document.createElement('input');
-  input.className = 'key-input';
-  input.type = 'password';
-  input.placeholder = 'Gemini API key (optional)';
-  input.value = getApiKey();
-  row.appendChild(input);
+    const dot = document.createElement('span');
+    dot.className = 'roster-dot';
+    row.appendChild(dot);
+    row.appendChild(document.createTextNode(agent.name.toUpperCase()));
 
-  const save = document.createElement('button');
-  save.className = 'btn';
-  save.style.flex = '0 0 auto';
-  save.textContent = 'Save';
-  save.onclick = () => {
-    setApiKey(input.value);
-    refreshMode();
-  };
-  row.appendChild(save);
+    const score = document.createElement('span');
+    score.className = 'roster-score';
+    score.textContent = '—';
+    row.appendChild(score);
 
-  section.appendChild(row);
+    list.appendChild(row);
+    rosterRows.set(agent.id, { row, score });
+  }
+  sect.body.appendChild(list);
 
-  modeNote = document.createElement('p');
-  modeNote.className = 'mode-note';
-  section.appendChild(modeNote);
+  // Scores come from the convergence history, so the roster and the radar
+  // always show the same figure.
+  subscribeHistory(rounds => {
+    const latest = rounds.length ? rounds[rounds.length - 1].scores : null;
+    for (const [id, entry] of rosterRows) {
+      entry.score.textContent = latest ? ((latest[id] ?? 0) / 10).toFixed(1) : '—';
+    }
+  });
 }
 
-// ── Ask an agent ─────────────────────────────────────────────────────────────
-// A round is the consultants talking among themselves. This is the architect
-// walking over to one desk and asking a question — the other half of the
-// consultation, and the reason the designer is in the room rather than just
-// approving what comes out of it.
+// ── 2. The activity feed ─────────────────────────────────────────────────────
 
-let askTarget = null;   // which agent is being asked
+function buildFeed(container) {
+  const sect = section(container, 'ACTIVITY FEED');
+  feed = document.createElement('div');
+  feed.className = 'feed';
+  sect.wrap.appendChild(feed);
+  sect.body.remove();
+}
 
-function buildAskSection(container) {
-  const section = document.createElement('section');
-  section.className = 'panel-section';
+function addSystem(text) {
+  const row = document.createElement('div');
+  row.className = 'msg msg-system';
+  row.textContent = text;
+  feed.appendChild(row);
+  feed.scrollTop = feed.scrollHeight;
+  recordLine({ round: currentRound(), who: 'system', text, kind: 'system' });
+}
 
-  const heading = document.createElement('h2');
-  heading.textContent = 'Ask a consultant';
-  section.appendChild(heading);
+function addMessage({ agent, text, evidence, kind, chips }) {
+  const row = document.createElement('div');
+  row.className = `msg msg-${kind ?? 'argument'}`;
+  row.style.setProperty('--agent-color', agent.color);
 
-  // Who to ask.
+  const head = document.createElement('div');
+  head.className = 'msg-head';
+  const who = document.createElement('span');
+  who.className = 'msg-who';
+  who.textContent = agent.name.toUpperCase();
+  head.appendChild(who);
+  const round = document.createElement('span');
+  round.className = 'msg-round';
+  round.textContent = kind === 'question' ? 'asked' : `R${currentRound()}`;
+  head.appendChild(round);
+  row.appendChild(head);
+
+  if (chips?.length) {
+    const chipRow = document.createElement('div');
+    chipRow.className = 'chips';
+    for (const c of chips) {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = c;
+      chipRow.appendChild(chip);
+    }
+    row.appendChild(chipRow);
+  }
+
+  const body = document.createElement('div');
+  body.className = 'msg-body';
+  body.textContent = text;
+  row.appendChild(body);
+
+  if (evidence) {
+    const ev = document.createElement('div');
+    ev.className = 'msg-evidence';
+    ev.textContent = evidence;
+    row.appendChild(ev);
+  }
+
+  feed.appendChild(row);
+  feed.scrollTop = feed.scrollHeight;
+  recordLine({ round: currentRound(), who: agent.name, text, kind });
+
+  for (const [id, entry] of rosterRows) entry.row.classList.toggle('active', id === agent.id);
+}
+
+function addProposal({ agent, proposal, evidence, round }) {
+  const card = document.createElement('div');
+  card.className = 'proposal';
+  card.style.setProperty('--agent-color', agent.color);
+
+  // The validated proposal carries `from` and `to`, not `value`. Reading the
+  // wrong field here writes undefined into the design on Accept.
+  const change = document.createElement('div');
+  change.className = 'proposal-change';
+  change.innerHTML = `<b>${agent.name}</b> proposes ${proposal.volumeId} `
+    + `${proposal.label ?? proposal.parameter} `
+    + `${formatValue(proposal.parameter, proposal.from)} → `
+    + `${formatValue(proposal.parameter, proposal.to)}`;
+  card.appendChild(change);
+
+  const why = document.createElement('div');
+  why.className = 'msg-evidence';
+  why.textContent = proposal.reason;
+  card.appendChild(why);
+
+  const actions = document.createElement('div');
+  actions.className = 'proposal-actions';
+
+  const accept = document.createElement('button');
+  accept.className = 'btn btn-small btn-primary';
+  accept.textContent = 'Accept';
+  accept.onclick = () => {
+    // Read the value the design actually has right now. The `from` recorded at
+    // proposal time can be stale: an earlier card in the same round may have
+    // already moved this parameter.
+    const volume = state.volumes.find(v => v.id === proposal.volumeId);
+    const before = volume ? volume[proposal.parameter] : proposal.from;
+
+    // A card from an earlier round can still be sitting in the feed after the
+    // design has moved on. Accepting one that asks for the value it already has
+    // is not a decision, so do not write it into the log.
+    if (before === proposal.to) {
+      settle(card, actions, 'accepted');
+      return;
+    }
+
+    updateVolume(proposal.volumeId, { [proposal.parameter]: proposal.to });
+    record({
+      round, agent: agent.name, agentColor: agent.color,
+      volumeId: proposal.volumeId, parameter: proposal.parameter,
+      from: before, to: proposal.to, reason: proposal.reason, evidence
+    });
+    settle(card, actions, 'accepted');
+  };
+  actions.appendChild(accept);
+
+  const reject = document.createElement('button');
+  reject.className = 'btn btn-small';
+  reject.textContent = 'Reject';
+  reject.onclick = () => settle(card, actions, 'rejected');
+  actions.appendChild(reject);
+
+  card.appendChild(actions);
+  feed.appendChild(card);
+  feed.scrollTop = feed.scrollHeight;
+}
+
+function settle(card, actions, outcome) {
+  const done = document.createElement('div');
+  done.className = `proposal-done ${outcome}`;
+  done.textContent = outcome === 'accepted' ? '✓ accepted' : '✕ rejected';
+  actions.replaceWith(done);
+}
+
+// ── 3. Agent chat ────────────────────────────────────────────────────────────
+
+function buildChat(container) {
+  const sect = section(container, 'AGENT CHAT');
+
   const whoRow = document.createElement('div');
   whoRow.className = 'tab-row';
   const whoButtons = AGENTS.map(agent => {
@@ -90,73 +222,66 @@ function buildAskSection(container) {
     b.className = 'tab';
     b.textContent = agent.name.slice(0, 5);
     b.title = agent.name;
-    b.style.setProperty('--agent-color', agent.color);
     b.onclick = () => {
       askTarget = askTarget === agent ? null : agent;
       whoButtons.forEach(x => x.el.classList.toggle('tab-on', x.agent === askTarget));
-      refreshAskState();
+      refreshChat();
     };
     whoRow.appendChild(b);
     return { agent, el: b };
   });
-  section.appendChild(whoRow);
+  sect.body.appendChild(whoRow);
 
-  // The three standard questions, which work with or without a key.
-  const topicRow = document.createElement('div');
-  topicRow.className = 'button-row';
-  const topicButtons = ASK_TOPICS.map(topic => {
-    const b = document.createElement('button');
-    b.className = 'btn btn-small';
-    b.textContent = topic.label;
-    b.onclick = () => ask(topic.question, topic.id);
-    topicRow.appendChild(b);
-    return b;
-  });
-  section.appendChild(topicRow);
-
-  // Free text, live mode only.
-  const freeRow = document.createElement('div');
-  freeRow.className = 'key-row';
-  freeRow.style.marginTop = '6px';
-
+  const row = document.createElement('div');
+  row.className = 'chat-row';
   const input = document.createElement('input');
-  input.className = 'key-input';
-  input.placeholder = 'Ask anything (needs a key)';
+  input.className = 'chat-input';
   input.onkeydown = e => { if (e.key === 'Enter') ask(input.value.trim(), null, input); };
-  freeRow.appendChild(input);
+  row.appendChild(input);
 
   const send = document.createElement('button');
   send.className = 'btn btn-small';
-  send.textContent = 'Ask';
+  send.style.flex = '0 0 auto';
+  send.textContent = 'SEND';
   send.onclick = () => ask(input.value.trim(), null, input);
-  freeRow.appendChild(send);
+  row.appendChild(send);
+  sect.body.appendChild(row);
 
-  section.appendChild(freeRow);
-  container.appendChild(section);
+  const quickLabel = document.createElement('div');
+  quickLabel.className = 'metric-sub';
+  quickLabel.textContent = 'QUICK QUESTIONS';
+  sect.body.appendChild(quickLabel);
 
-  refreshAskState = () => {
+  const quickList = document.createElement('div');
+  quickList.className = 'quick-list';
+  const quickButtons = ASK_TOPICS.map(topic => {
+    const b = document.createElement('button');
+    b.className = 'quick';
+    b.textContent = topic.question;
+    b.onclick = () => ask(topic.question, topic.id);
+    quickList.appendChild(b);
+    return b;
+  });
+  sect.body.appendChild(quickList);
+
+  refreshChat = () => {
     const ready = askTarget !== null;
-    topicButtons.forEach(b => { b.disabled = !ready; });
     const live = hasApiKey();
+    quickButtons.forEach(b => { b.disabled = !ready; });
     input.disabled = !ready || !live;
     send.disabled = !ready || !live;
-    input.placeholder = live
-      ? (ready ? `Ask ${askTarget.name} anything` : 'Choose a consultant first')
-      : 'Free questions need an API key';
+    input.placeholder = !live ? 'Free questions need a key'
+      : ready ? `Ask ${askTarget.name}…` : 'Choose an agent';
   };
-  refreshAskState();
+  refreshChat();
 }
-
-// Reassigned by buildAskSection once its controls exist.
-let refreshAskState = () => {};
 
 async function ask(question, topicId, input) {
   if (!askTarget || !question || isRunning()) return;
 
   addMessage({
     agent: { id: 'designer', name: 'You', color: 'var(--designer)' },
-    text: question,
-    kind: 'question'
+    text: question, kind: 'question'
   });
   if (input) input.value = '';
 
@@ -170,280 +295,116 @@ async function ask(question, topicId, input) {
   }
 }
 
+// ── 4. Key ───────────────────────────────────────────────────────────────────
+
+function buildKeyRow(container) {
+  const sect = section(container, 'MODE');
+
+  const row = document.createElement('div');
+  row.className = 'chat-row';
+  const input = document.createElement('input');
+  input.className = 'chat-input';
+  input.type = 'password';
+  input.placeholder = 'Gemini API key (optional)';
+  input.value = getApiKey();
+  row.appendChild(input);
+
+  const save = document.createElement('button');
+  save.className = 'btn btn-small';
+  save.style.flex = '0 0 auto';
+  save.textContent = 'SAVE';
+  save.onclick = () => { setApiKey(input.value); refreshMode(); };
+  row.appendChild(save);
+  sect.body.appendChild(row);
+
+  const note = document.createElement('p');
+  note.className = 'sect-note';
+  note.id = 'modeNote';
+  note.style.marginTop = '5px';
+  sect.body.appendChild(note);
+}
+
 function refreshMode() {
   const live = hasApiKey();
-
-  if (live) {
-    modeNote.innerHTML = '<b>Live mode.</b> Agents write their own arguments. '
-      + 'The key stays in this browser.';
-  } else {
-    modeNote.innerHTML = '<b>Demo mode.</b> The tools run for real, so every number '
-      + 'is genuine — only the wording is pre-written. Add a key for live agents.';
+  const note = document.getElementById('modeNote');
+  if (note) {
+    note.textContent = live
+      ? 'Live mode. Agents write their own arguments. The key stays in this browser.'
+      : 'Demo mode. The tools run for real, so every number is genuine — only the wording is pre-written.';
   }
-
-  // Mirror it in the top bar, where it is visible from across a room.
-  refreshAskState();
-
   const chip = document.getElementById('modeChip');
   if (chip) {
     chip.textContent = live ? 'live' : 'demo';
     chip.classList.toggle('live', live);
   }
+  refreshChat();
 }
 
-// ── Run button ───────────────────────────────────────────────────────────────
+// ── 5. The bottom action bar ─────────────────────────────────────────────────
 
-function buildRunSection(container) {
-  const section = sectionEl(container, 'Negotiation');
+function buildActionBar() {
+  statusEl = document.getElementById('status');
+  const actions = document.getElementById('actions');
+  actions.innerHTML = '';
 
-  runButton = document.createElement('button');
-  runButton.className = 'btn btn-primary';
-  runButton.textContent = 'Run a round';
-  runButton.onclick = startRound;
-  section.appendChild(runButton);
+  runAction = document.createElement('button');
+  runAction.className = 'action action-primary';
+  runAction.textContent = '▶ RUN ROUND';
+  runAction.onclick = startRound;
+  actions.appendChild(runAction);
+}
+
+function setStatus(text, busy = false) {
+  if (!statusEl) return;
+  statusEl.textContent = `◉ ${text.toUpperCase()}`;
+  statusEl.classList.toggle('busy', busy);
 }
 
 async function startRound() {
   if (isRunning()) return;
-  runButton.disabled = true;
+  runAction.disabled = true;
+  setStatus('discussion in progress', true);
 
   await runRound({
-    onStatus: text => {
-      runButton.textContent = text.length > 34 ? 'Working…' : text;
-      addSystemLine(text);
-    },
+    onStatus: text => { setStatus(text, true); addSystem(text); },
     onMessage: entry => {
-      // The room and the transcript show the same thing two ways: the agent
-      // says it out loud at its desk, and it is written down on the right.
       speak(entry.agent, entry.text, entry.kind);
-      addMessage(entry);
+      addMessage({
+        ...entry,
+        chips: typeof entry.agent.highlights === 'function' && entry.result
+          ? entry.agent.highlights(entry.result) : null
+      });
     },
     onProposal: addProposal
   });
 
   quiet();
-  runButton.disabled = false;
-  runButton.textContent = 'Run another round';
+  runAction.disabled = false;
+  runAction.textContent = '▶ RUN ANOTHER ROUND';
+  setStatus(`round ${currentRound()} complete`);
 
-  const roundChip = document.getElementById('roundChip');
-  if (roundChip) roundChip.textContent = `round ${currentRound()}`;
+  const chip = document.getElementById('roundChip');
+  if (chip) chip.textContent = `ROUND ${currentRound()}`;
+
+  captureFrame(currentRound());
 }
 
-// ── Conversation items ───────────────────────────────────────────────────────
+// ── Helper ───────────────────────────────────────────────────────────────────
 
-function addSystemLine(text) {
-  const line = document.createElement('div');
-  line.className = 'msg msg-system';
-  line.textContent = text;
-  feed.appendChild(line);
-  scrollDown();
-}
-
-function addMessage({ agent, text, evidence, kind }) {
-  const msg = document.createElement('div');
-  msg.className = 'msg' + (kind === 'error' ? ' msg-error' : '');
-  msg.style.setProperty('--agent-color', agent.color);
+function section(parent, title) {
+  const wrap = document.createElement('section');
+  wrap.className = 'sect';
 
   const head = document.createElement('div');
-  head.className = 'msg-head';
-
-  head.appendChild(avatarFor(agent));
-
-  const who = document.createElement('span');
-  who.className = 'msg-who';
-  who.textContent = agent.name;
-  head.appendChild(who);
-
-  const tag = document.createElement('span');
-  tag.className = 'msg-round';
-  tag.textContent = kind === 'reply' ? 'reply' : kind === 'error' ? 'error' : `round ${currentRound()}`;
-  head.appendChild(tag);
-
-  msg.appendChild(head);
+  head.className = 'sect-head';
+  head.style.cursor = 'default';
+  head.innerHTML = `<span class="diamond">◆</span><span>${title}</span>`;
+  wrap.appendChild(head);
 
   const body = document.createElement('div');
-  body.className = 'msg-body';
-  body.textContent = text;
-  msg.appendChild(body);
-
-  if (evidence) {
-    const ev = document.createElement('div');
-    ev.className = 'msg-evidence';
-    ev.innerHTML = `<b>${agent.tool.name}()</b> ${escapeHtml(evidence)}`;
-    msg.appendChild(ev);
-  }
-
-  feed.appendChild(msg);
-  scrollDown();
-}
-
-function addProposal({ agent, proposal, evidence, round }) {
-  const card = document.createElement('div');
-  card.className = 'proposal';
-  card.style.setProperty('--agent-color', agent.color);
-
-  const change = document.createElement('div');
-  change.className = 'proposal-change';
-  change.appendChild(avatarFor(agent));
-  const changeText = document.createElement('span');
-  changeText.innerHTML =
-    `<b>${escapeHtml(agent.name)}</b> proposes ${proposal.volumeId} ${proposal.label} ` +
-    `${formatValue(proposal.parameter, proposal.from)} → ` +
-    `${formatValue(proposal.parameter, proposal.to)}`;
-  change.appendChild(changeText);
-  card.appendChild(change);
-
-  const reason = document.createElement('div');
-  reason.className = 'msg-evidence';
-  reason.textContent = proposal.reason;
-  card.appendChild(reason);
-
-  const actions = document.createElement('div');
-  actions.className = 'proposal-actions';
-
-  const accept = document.createElement('button');
-  accept.className = 'btn btn-primary btn-small';
-  accept.textContent = 'Accept';
-
-  const reject = document.createElement('button');
-  reject.className = 'btn btn-small btn-quiet';
-  reject.textContent = 'Reject';
-
-  const settle = decision => {
-    const volume = state.volumes.find(v => v.id === proposal.volumeId);
-
-    // The volume may have been deleted since the agent proposed this.
-    if (!volume) {
-      actions.remove();
-      const gone = document.createElement('div');
-      gone.className = 'proposal-done rejected';
-      gone.textContent = `✕ volume ${proposal.volumeId} no longer exists`;
-      card.appendChild(gone);
-      return;
-    }
-
-    // Cards stay on screen across rounds, so by the time one is accepted the
-    // parameter may already have moved — another proposal may have changed it,
-    // or the designer may have. Read the value as it is right now, not as it
-    // was when the agent spoke, or the log records a change that never happened.
-    const from = volume[proposal.parameter];
-
-    // The design only ever changes here, when the designer says so.
-    if (decision === 'accepted') {
-      updateVolume(proposal.volumeId, { [proposal.parameter]: proposal.to });
-    }
-
-    record({
-      round,
-      agentId: agent.id,
-      agentName: agent.name,
-      volumeId: proposal.volumeId,
-      parameter: proposal.parameter,
-      from,
-      to: proposal.to,
-      reason: proposal.reason,
-      evidence,
-      decision
-    });
-
-    actions.remove();
-    const done = document.createElement('div');
-    done.className = `proposal-done ${decision}`;
-    done.textContent = decision === 'accepted' ? '✓ accepted' : '✕ rejected';
-    card.appendChild(done);
-  };
-
-  accept.onclick = () => settle('accepted');
-  reject.onclick = () => settle('rejected');
-
-  actions.appendChild(accept);
-  actions.appendChild(reject);
-  card.appendChild(actions);
-
-  feed.appendChild(card);
-  scrollDown();
-}
-
-function scrollDown() {
-  feed.scrollTop = feed.scrollHeight;
-}
-
-// ── Decision log ─────────────────────────────────────────────────────────────
-
-function buildLogSection(container) {
-  const section = sectionEl(container, 'Decision log');
-
-  const list = document.createElement('div');
-  section.appendChild(list);
-
-  const copy = document.createElement('button');
-  copy.className = 'btn btn-small';
-  copy.textContent = 'Copy log';
-  copy.onclick = () => navigator.clipboard?.writeText(toText());
-  section.appendChild(copy);
-
-  subscribeLog(entries => {
-    list.innerHTML = '';
-
-    if (entries.length === 0) {
-      const empty = document.createElement('p');
-      empty.className = 'placeholder';
-      empty.textContent = 'Nothing decided yet.';
-      list.appendChild(empty);
-      copy.disabled = true;
-      return;
-    }
-
-    copy.disabled = false;
-    for (const entry of entries) {
-      const row = document.createElement('div');
-      row.className = 'log-entry';
-      row.innerHTML =
-        `<b>${escapeHtml(describe(entry))}</b> · ` +
-        `<span class="log-agent">${escapeHtml(entry.agentName)}</span> · ${entry.decision}`;
-      list.appendChild(row);
-    }
-  });
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * The agent's pixel portrait, or a coloured initial when it has none.
- *
- * An agent you write yourself does not need artwork. Leave `avatar` off and you
- * get a tile in your agent's colour with its first letter, which is enough to
- * tell speakers apart in the conversation.
- */
-export function avatarFor(agent) {
-  if (agent.avatar) {
-    const img = document.createElement('img');
-    img.className = 'avatar';
-    img.src = agent.avatar;
-    img.alt = agent.name;
-    img.style.borderColor = agent.color;
-    return img;
-  }
-
-  const tile = document.createElement('span');
-  tile.className = 'avatar avatar-letter';
-  tile.textContent = agent.name.charAt(0).toUpperCase();
-  tile.style.borderColor = agent.color;
-  tile.style.color = agent.color;
-  return tile;
-}
-
-function sectionEl(parent, title) {
-  const wrap = document.createElement('section');
-  wrap.className = 'panel-section';
-  const h = document.createElement('h2');
-  h.textContent = title;
-  wrap.appendChild(h);
+  body.className = 'sect-body';
+  wrap.appendChild(body);
   parent.appendChild(wrap);
-  return wrap;
-}
 
-function escapeHtml(text) {
-  return String(text).replace(/[&<>"]/g, c =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  return { wrap, body };
 }

@@ -40,7 +40,9 @@ let speechTimer = null;
  */
 export function initOffice(container) {
   container.innerHTML = '';
-  container.className = 'office';
+  // Do not touch container.className here: the column's grid placement and
+  // `position: relative` live on the classes index.html already put on it, and
+  // overwriting them detaches the room from its column.
 
   const room = document.createElement('div');
   room.className = 'office-room';

@@ -54,7 +54,7 @@ export function initViewport(container) {
   camera = new THREE.PerspectiveCamera(45, 1, 0.5, 2000);
   camera.position.set(115, 130, 150);
 
-  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   container.appendChild(renderer.domElement);
@@ -162,23 +162,25 @@ function buildContext() {
   // in shadow, which is exactly the moment you most need to see where it is.
   scene.add(flatRect(PARK.width, PARK.depth, PARK.x, PARK.z, COLOR.park, 0.03, 0x14301f));
 
-  // The surrounding city. Deliberately quiet in tone so the design reads as the
-  // subject, but they cast real shadows, exactly as they do in the analysis.
+  // The surrounding city, drawn as line work rather than solid blocks so the
+  // design being argued about is the only thing with mass on screen. They still
+  // cast shadows: an invisible box in the shadow map is still a box.
   for (const building of CONTEXT) {
-    const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(building.width, building.height, building.depth),
-      new THREE.MeshLambertMaterial({ color: COLOR.neighbour })
-    );
-    mesh.position.set(building.x, building.height / 2, building.z);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    scene.add(mesh);
+    const box = new THREE.BoxGeometry(building.width, building.height, building.depth);
+
+    const shell = new THREE.Mesh(box, new THREE.MeshLambertMaterial({
+      color: COLOR.neighbour, transparent: true, opacity: 0.35
+    }));
+    shell.position.set(building.x, building.height / 2, building.z);
+    shell.castShadow = true;
+    shell.receiveShadow = true;
+    scene.add(shell);
 
     const edges = new THREE.LineSegments(
-      new THREE.EdgesGeometry(mesh.geometry),
+      new THREE.EdgesGeometry(box),
       new THREE.LineBasicMaterial({ color: COLOR.contextEdge })
     );
-    edges.position.copy(mesh.position);
+    edges.position.copy(shell.position);
     scene.add(edges);
   }
 }
@@ -270,4 +272,39 @@ function updateVolumes(s) {
     edges.rotation.copy(mesh.rotation);
     volumeGroup.add(edges);
   }
+}
+
+
+// ── Round thumbnails ─────────────────────────────────────────────────────────
+
+/**
+ * Grab the current view as a small image and add it to the filmstrip.
+ * Called after each round, so the strip becomes a visual history of the design.
+ */
+export function captureFrame(round) {
+  if (!renderer) return;
+
+  // Draw once more right now: the animation loop may have cleared the buffer.
+  renderer.render(scene, camera);
+  const url = renderer.domElement.toDataURL('image/webp', 0.6);
+
+  const strip = document.getElementById('filmstrip');
+  if (!strip) return;
+  strip.querySelector('.filmstrip-empty')?.remove();
+  for (const frame of strip.querySelectorAll('.frame-latest')) {
+    frame.classList.remove('frame-latest');
+  }
+
+  const frame = document.createElement('div');
+  frame.className = 'frame frame-latest';
+  const img = document.createElement('img');
+  img.src = url;
+  img.alt = `Round ${round}`;
+  frame.appendChild(img);
+  const label = document.createElement('div');
+  label.className = 'frame-label';
+  label.textContent = `R${String(round).padStart(3, '0')}`;
+  frame.appendChild(label);
+
+  strip.prepend(frame);
 }

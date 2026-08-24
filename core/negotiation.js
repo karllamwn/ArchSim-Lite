@@ -92,7 +92,7 @@ export async function runRound({ onStatus, onMessage, onProposal }) {
       }
 
       opening.push({ agent, reply, evidence, result });
-      onMessage({ agent, text: reply.argument, evidence, kind: 'argument' });
+      onMessage({ agent, text: reply.argument, evidence, result, kind: 'argument' });
     }
 
     // The scores describe the design as it stood at the start of this round.
@@ -128,7 +128,7 @@ export async function runRound({ onStatus, onMessage, onProposal }) {
           const transcript = others.map(o => `${o.name}: ${o.argument}`).join('\n');
           const final = await askLive(agent, evidence, transcript);
           entry.reply = final;   // a live agent may change its mind here
-          onMessage({ agent, text: final.argument, evidence, kind: 'reply' });
+          onMessage({ agent, text: final.argument, evidence, result: entry.result, kind: 'reply' });
         } catch (error) {
           onMessage({ agent, text: error.message, evidence, kind: 'error' });
         }

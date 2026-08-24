@@ -7,7 +7,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 
 <!-- Libraries load from a CDN through an import map. This is what lets us
@@ -25,64 +25,59 @@
 
 <body>
 
+<!-- ── Top bar: which mode, which round ─────────────────────────────────── -->
 <header class="topbar">
-  <div class="brand">ArchSim <span>Lite</span></div>
-  <div class="tagline">one agent &middot; one knowledge base &middot; one goal &middot; one tool</div>
+  <div class="mode-tabs">
+    <button class="mode-tab mode-tab-on" id="tabNegotiation">&#9673; NEGOTIATION</button>
+    <button class="mode-tab" id="tabSurveillance">&#9675; SURVEILLANCE</button>
+  </div>
+  <div class="round-label" id="roundChip">ROUND 0</div>
   <div class="topbar-right">
     <span class="mode-chip" id="modeChip">demo</span>
-    <span class="milestone" id="roundChip">round 0</span>
   </div>
 </header>
 
 <main class="layout">
 
-  <!-- Left: design parameters, the sun, and the tool debug panel -->
-  <aside class="panel panel-left">
-    <div id="panel"></div>
-    <section class="panel-section">
-      <h2>Tools</h2>
-      <div id="debug"></div>
-    </section>
-  </aside>
+  <!-- ── 1. Metrics and design parameters ───────────────────────────────── -->
+  <aside class="col col-metrics" id="metrics"></aside>
 
-  <!-- Centre: the design above, the room where it is argued about below -->
-  <section class="stage">
-    <div class="stage-split">
-      <div class="viewport" id="viewport"></div>
-      <div id="office"></div>
-    </div>
-
-    <footer class="stage-note">
-      Drag to orbit &middot; scroll to zoom &middot; right-drag to pan.
-      The park is north of the site, which is where shadows fall.
-    </footer>
+  <!-- ── 2. The design ──────────────────────────────────────────────────── -->
+  <section class="col col-stage">
+    <div class="stage-label">LATEST &middot; <span id="stageView">SITE VIEW</span></div>
+    <div class="viewport" id="viewport"></div>
+    <div class="filmstrip" id="filmstrip"></div>
   </section>
 
-  <!-- Right: the negotiation, with the convergence charts beneath it -->
-  <aside class="panel panel-right">
-    <div id="agents"></div>
-    <section class="panel-section">
-      <h2>Convergence</h2>
-      <div id="charts"></div>
-    </section>
-  </aside>
+  <!-- ── 3. The room where it is argued about ───────────────────────────── -->
+  <section class="col col-office" id="office"></section>
+
+  <!-- ── 4. Who is in the room, and what they just said ─────────────────── -->
+  <aside class="col col-feed" id="feed"></aside>
+
+  <!-- ── 5. What the round produced ─────────────────────────────────────── -->
+  <aside class="col col-deliverables" id="deliverables"></aside>
 
 </main>
+
+<!-- ── Bottom bar: status and the actions ───────────────────────────────── -->
+<footer class="actionbar">
+  <div class="status" id="status">&#9673; READY</div>
+  <div class="actions" id="actions"></div>
+</footer>
 
 <script type="module">
   import { initViewport } from './view/viewport.js';
   import { initPanel } from './ui/panel.js';
-  import { initDebug } from './ui/debug.js';
   import { initOffice } from './ui/office.js';
-  import { initCharts } from './ui/charts.js';
   import { initConversation } from './ui/conversation.js';
+  import { initDeliverables } from './ui/deliverables.js';
 
   initViewport(document.getElementById('viewport'));
-  initPanel(document.getElementById('panel'));
-  initDebug(document.getElementById('debug'));
+  initPanel(document.getElementById('metrics'));
   initOffice(document.getElementById('office'));
-  initCharts(document.getElementById('charts'));
-  initConversation(document.getElementById('agents'));
+  initDeliverables(document.getElementById('deliverables'));
+  initConversation(document.getElementById('feed'));
 </script>
 
 </body>

@@ -97,6 +97,16 @@ export const communityAgent = {
     return result.overallSatisfaction;
   },
 
+  // ── What this agent watches ────────────────────────────────────────────────
+  highlights(result) {
+    return [
+      `satisfaction ${result.overallSatisfaction}/100`,
+      `lowest: ${result.lowestConcern.label.toLowerCase()}`,
+      `${result.respondents} respondents`,
+      'fictional survey'
+    ];
+  },
+
   // ── Demo answers ───────────────────────────────────────────────────────────
   demoAnswer(topic, result, state) {
     const kb = communityAgent.knowledge;

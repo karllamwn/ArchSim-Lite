@@ -1,22 +1,27 @@
-// ui/panel.js — the left-hand controls: which volume, its parameters, and the sun.
+// ui/panel.js — the left column: what the site is, what you have drawn, and
+// what the tools currently measure.
 //
-// Every control writes through the update functions in core/state.js. It never
-// touches `state` directly, and it never talks to the viewport — the viewport
-// is subscribed to the same state and redraws itself.
+// Laid out like the V2 workspace: collapsible sections of dense label/value
+// rows, with the editable design parameters in the middle. Everything here is
+// read straight from the tools, so the numbers on the left and the numbers an
+// agent cites in the transcript can never drift apart.
 
 import {
   state, subscribe, updateVolume, updateSun,
   addVolume, removeVolume, selectVolume,
   volumeHeight, volumeGFA
 } from '../core/state.js';
-import { SITE } from '../core/site.js';
+import { SITE, PARK, CONTEXT } from '../core/site.js';
 import { sunPosition } from '../view/sun.js';
-
-// The sliders come from the shared parameter list, so a slider and an agent
-// proposal can never disagree about what a legal value is.
 import { PARAMETERS as VOLUME_CONTROLS } from '../core/parameters.js';
 
-// The four dates a shadow study normally checks. The equinoxes and solstices.
+import { shadowAnalysis } from '../tools/shadowAnalysis.js';
+import { layoutCheck } from '../tools/layoutCheck.js';
+import { surveyScore } from '../tools/surveyScore.js';
+import { architectAgent } from '../agents/architect.js';
+import { environmentalAgent } from '../agents/environmental.js';
+import { communityAgent } from '../agents/community.js';
+
 const PRESET_DATES = [
   { label: 'Mar 21', month: 3,  day: 21 },
   { label: 'Jun 21', month: 6,  day: 21 },
@@ -24,41 +29,53 @@ const PRESET_DATES = [
   { label: 'Dec 21', month: 12, day: 21 }
 ];
 
-/**
- * Build the panel once, then keep its values in sync with the state.
- * @param {HTMLElement} container
- */
 export function initPanel(container) {
   container.innerHTML = '';
 
-  const volumeTabs = section(container, 'Volumes');
-  const params     = section(container, 'Parameters');
-  const readout    = section(container, 'Derived');
-  const sun        = section(container, 'Sun');
+  const zoning  = section(container, 'SITE & ZONING');
+  const massing = section(container, 'MASSING METRICS');
+  const params  = section(container, 'DESIGN PARAMS');
+  const shadow  = section(container, 'SHADOW (park)');
+  const layout  = section(container, 'LAYOUT CHECK');
+  const survey  = section(container, 'COMMUNITY SURVEY');
+  const sun     = section(container, 'SUN', true);
 
-  // Elements we need to update later are collected as we build them.
-  const sliders = {};
-  const valueLabels = {};
+  // ── Site and zoning: fixed, so build it once ───────────────────────────────
+  const s = SITE.setbacks;
+  metric(zoning, 'Site', `${SITE.width} × ${SITE.depth} m`);
+  metric(zoning, 'Site area', `${SITE.width * SITE.depth} m²`);
+  metric(zoning, 'Latitude', `${SITE.latitude}° N`);
+  metric(zoning, 'Setbacks N/S/E/W', `${s.north}/${s.south}/${s.east}/${s.west} m`);
+  metric(zoning, 'Max height', `${architectAgent.knowledge.maxHeight} m`);
+  metric(zoning, 'Max coverage', `${architectAgent.knowledge.maxCoveragePercent}%`);
+  metric(zoning, 'Park', `${PARK.width} × ${PARK.depth} m, north`);
+  metric(zoning, 'Context blocks', String(CONTEXT.length));
 
-  // ── Volume tabs ────────────────────────────────────────────────────────────
+  // ── Everything below is rebuilt whenever the design changes ────────────────
+  const massingBody = massing.body;
+  const shadowBody = shadow.body;
+  const layoutBody = layout.body;
+  const surveyBody = survey.body;
+
+  // ── Volume tabs + sliders ──────────────────────────────────────────────────
   const tabRow = el('div', 'tab-row');
-  volumeTabs.appendChild(tabRow);
+  params.body.appendChild(tabRow);
 
   const volumeButtons = el('div', 'button-row');
-  volumeTabs.appendChild(volumeButtons);
+  params.body.appendChild(volumeButtons);
 
-  const addBtn = el('button', 'btn', '+ Add volume');
+  const addBtn = el('button', 'btn btn-small', '+ Volume');
   addBtn.onclick = () => addVolume();
   volumeButtons.appendChild(addBtn);
 
-  const removeBtn = el('button', 'btn btn-quiet', 'Remove');
+  const removeBtn = el('button', 'btn btn-small btn-quiet', 'Remove');
   removeBtn.onclick = () => removeVolume(state.selectedId);
   volumeButtons.appendChild(removeBtn);
 
-  // ── Parameter sliders ──────────────────────────────────────────────────────
+  const sliders = {};
+  const sliderLabels = {};
   for (const control of VOLUME_CONTROLS) {
     const row = el('div', 'control');
-
     const head = el('div', 'control-head');
     head.appendChild(el('label', '', control.label));
     const value = el('span', 'control-value');
@@ -73,19 +90,14 @@ export function initPanel(container) {
     input.oninput = () => updateVolume(state.selectedId, { [control.key]: Number(input.value) });
     row.appendChild(input);
 
-    params.appendChild(row);
+    params.body.appendChild(row);
     sliders[control.key] = input;
-    valueLabels[control.key] = value;
+    sliderLabels[control.key] = value;
   }
-
-  // ── Derived readout ────────────────────────────────────────────────────────
-  const heightOut = readoutRow(readout, 'Height');
-  const gfaOut    = readoutRow(readout, 'GFA');
 
   // ── Sun controls ───────────────────────────────────────────────────────────
   const dateRow = el('div', 'button-row');
-  sun.appendChild(dateRow);
-
+  sun.body.appendChild(dateRow);
   const dateButtons = PRESET_DATES.map(preset => {
     const b = el('button', 'btn btn-small', preset.label);
     b.onclick = () => updateSun({ month: preset.month, day: preset.day });
@@ -94,59 +106,142 @@ export function initPanel(container) {
   });
 
   const hourRow = el('div', 'control');
+  hourRow.style.marginTop = '7px';
   const hourHead = el('div', 'control-head');
   hourHead.appendChild(el('label', '', 'Time (solar)'));
   const hourValue = el('span', 'control-value');
   hourHead.appendChild(hourValue);
   hourRow.appendChild(hourHead);
-
   const hourInput = el('input', 'slider');
   hourInput.type = 'range';
-  hourInput.min = 4;
-  hourInput.max = 20;
-  hourInput.step = 0.25;
+  hourInput.min = 4; hourInput.max = 20; hourInput.step = 0.25;
   hourInput.oninput = () => updateSun({ hour: Number(hourInput.value) });
   hourRow.appendChild(hourInput);
-  sun.appendChild(hourRow);
+  sun.body.appendChild(hourRow);
 
-  const altOut = readoutRow(sun, 'Altitude');
-  const aziOut = readoutRow(sun, 'Azimuth');
+  const sunAlt = metric(sun.body, 'Altitude', '—');
+  const sunAzi = metric(sun.body, 'Azimuth', '—');
 
-  // ── Keep everything in sync ────────────────────────────────────────────────
-  subscribe(s => {
-    const volume = s.volumes.find(v => v.id === s.selectedId);
+  // ── Keep it all in sync ────────────────────────────────────────────────────
+  subscribe(s2 => {
+    const volume = s2.volumes.find(v => v.id === s2.selectedId);
 
     // Tabs
-    tabRow.innerHTML = '';
-    for (const v of s.volumes) {
-      const tab = el('button', 'tab' + (v.id === s.selectedId ? ' tab-on' : ''), v.id);
+    tabRow.replaceChildren(...s2.volumes.map(v => {
+      const tab = el('button', 'tab' + (v.id === s2.selectedId ? ' tab-on' : ''), v.id);
       tab.onclick = () => selectVolume(v.id);
-      tabRow.appendChild(tab);
-    }
-    removeBtn.disabled = s.volumes.length <= 1;
-    addBtn.disabled = s.volumes.length >= 3;
+      return tab;
+    }));
+    removeBtn.disabled = s2.volumes.length <= 1;
+    addBtn.disabled = s2.volumes.length >= 3;
 
     // Sliders
     for (const control of VOLUME_CONTROLS) {
       sliders[control.key].value = volume[control.key];
-      valueLabels[control.key].textContent = `${volume[control.key]}${control.unit}`;
+      sliderLabels[control.key].textContent = `${volume[control.key]}${control.unit}`;
     }
-
-    // Derived
-    heightOut.textContent = `${volumeHeight(volume).toFixed(1)} m`;
-    gfaOut.textContent = `${Math.round(volumeGFA(volume)).toLocaleString()} m²`;
 
     // Sun
-    hourInput.value = s.sun.hour;
-    hourValue.textContent = formatHour(s.sun.hour);
+    hourInput.value = s2.sun.hour;
+    hourValue.textContent = formatHour(s2.sun.hour);
     for (const { button, preset } of dateButtons) {
-      button.classList.toggle('btn-on', s.sun.month === preset.month && s.sun.day === preset.day);
+      button.classList.toggle('btn-on', s2.sun.month === preset.month && s2.sun.day === preset.day);
     }
+    const pos = sunPosition(s2.sun.month, s2.sun.day, s2.sun.hour, SITE.latitude);
+    sunAlt.textContent = pos.isUp ? `${pos.altitude.toFixed(1)}°` : 'below horizon';
+    sunAzi.textContent = `${pos.azimuth.toFixed(0)}°`;
 
-    const pos = sunPosition(s.sun.month, s.sun.day, s.sun.hour, SITE.latitude);
-    altOut.textContent = pos.isUp ? `${pos.altitude.toFixed(1)}°` : 'below horizon';
-    aziOut.textContent = `${pos.azimuth.toFixed(0)}°`;
+    // Run the same tools the agents run, so the panel and the argument agree.
+    const shadowResult = shadowAnalysis(s2, environmentalAgent.knowledge.testTimes);
+    const layoutResult = layoutCheck(s2, architectAgent.knowledge);
+    const surveyResult = surveyScore(s2, shadowResult, communityAgent.knowledge);
+
+    renderMassing(massingBody, s2, volume, layoutResult);
+    renderShadow(shadowBody, shadowResult);
+    renderLayout(layoutBody, layoutResult);
+    renderSurvey(surveyBody, surveyResult);
   });
+}
+
+// ── Section renderers ────────────────────────────────────────────────────────
+
+function renderMassing(body, state, volume, layout) {
+  body.replaceChildren();
+  metric(body, 'Volumes', String(state.volumes.length));
+  metric(body, 'Total GFA', `${layout.totalGFA.toLocaleString()} m²`);
+  metric(body, 'Site coverage', `${layout.siteCoveragePercent}%`,
+    layout.exceedsMaxCoverage ? 'warn' : 'good');
+
+  sub(body, `VOLUME ${volume.id}`);
+  metric(body, 'Footprint', `${volume.w} × ${volume.d} m`);
+  metric(body, 'Floors', String(volume.floors));
+  metric(body, 'Height', `${volumeHeight(volume).toFixed(1)} m`);
+  metric(body, 'GFA', `${Math.round(volumeGFA(volume)).toLocaleString()} m²`);
+  metric(body, 'Rotation', `${volume.rotation}°`);
+}
+
+function renderShadow(body, result) {
+  body.replaceChildren();
+  const worst = result.worst;
+  if (!worst) {
+    body.appendChild(el('p', 'sect-note', 'Sun below horizon at every test time.'));
+    return;
+  }
+  const kb = environmentalAgent.knowledge;
+  metric(body, 'Park area', `${result.parkArea} m²`);
+  metric(body, 'Sample points', String(result.sampleCount));
+
+  sub(body, `WORST · ${worst.label.toUpperCase()}`);
+  metric(body, 'Sun altitude', `${worst.sunAltitude}°`);
+  metric(body, 'Shaded, total', `${worst.shadowedPercent}%`);
+  metric(body, 'By existing', `${worst.existingPercent}%`);
+  metric(body, 'Added by design', `${worst.addedByDesignPercent}%`,
+    worst.addedByDesignPercent > kb.acceptableShadowPercent ? 'warn' : 'good');
+  metric(body, 'Threshold', `${kb.acceptableShadowPercent}%`);
+
+  sub(body, 'AVERAGE ACROSS TIMES');
+  metric(body, 'Total', `${result.averageShadowedPercent}%`);
+  metric(body, 'Added', `${result.averageAddedByDesignPercent}%`);
+}
+
+function renderLayout(body, result) {
+  body.replaceChildren();
+  metric(body, 'Rule issues', String(result.violationCount),
+    result.violationCount ? 'warn' : 'good');
+
+  for (const v of result.volumes) {
+    sub(body, `VOLUME ${v.id} SETBACKS`);
+    for (const side of ['north', 'south', 'east', 'west']) {
+      const issue = v.setbackIssues.find(i => i.side === side);
+      metric(body, side.charAt(0).toUpperCase() + side.slice(1),
+        `${v.setbackDistances[side]} m`, issue ? 'warn' : '');
+    }
+  }
+
+  if (result.pairs.length) {
+    sub(body, 'SPACING');
+    for (const p of result.pairs) {
+      metric(body, p.between.join(' – '),
+        p.overlap ? 'overlap' : `${p.gap} m`,
+        (p.overlap || p.tooClose) ? 'warn' : 'good');
+    }
+  }
+}
+
+function renderSurvey(body, result) {
+  body.replaceChildren();
+  metric(body, 'Overall', `${result.overallSatisfaction}/100`,
+    result.overallSatisfaction >= communityAgent.knowledge.satisfactionFloor ? 'good' : 'warn');
+  metric(body, 'Respondents', String(result.respondents));
+
+  sub(body, 'BY CONCERN');
+  for (const c of result.concerns) {
+    metric(body, c.label, `${c.satisfaction}/100`, c.satisfaction < 50 ? 'warn' : '');
+  }
+
+  const note = el('p', 'sect-note', `Fictional survey data, invented for this exercise.`);
+  note.style.marginTop = '5px';
+  body.appendChild(note);
 }
 
 // ── Small DOM helpers ────────────────────────────────────────────────────────
@@ -158,23 +253,44 @@ function el(tag, className = '', text = '') {
   return node;
 }
 
-function section(parent, title) {
-  const wrap = el('section', 'panel-section');
-  wrap.appendChild(el('h2', '', title));
+/** A collapsible section. Returns { body } for callers to fill. */
+function section(parent, title, collapsed = false) {
+  const wrap = el('section', 'sect' + (collapsed ? ' collapsed' : ''));
+
+  const head = el('button', 'sect-head');
+  head.appendChild(el('span', 'diamond', '◆'));
+  head.appendChild(el('span', '', title));
+  const caret = el('span', 'caret', collapsed ? '▸' : '▾');
+  head.appendChild(caret);
+  head.onclick = () => {
+    wrap.classList.toggle('collapsed');
+    caret.textContent = wrap.classList.contains('collapsed') ? '▸' : '▾';
+  };
+  wrap.appendChild(head);
+
+  const body = el('div', 'sect-body');
+  wrap.appendChild(body);
   parent.appendChild(wrap);
-  return wrap;
+
+  return { wrap, body };
 }
 
-function readoutRow(parent, label) {
-  const row = el('div', 'readout');
-  row.appendChild(el('span', 'readout-label', label));
-  const value = el('span', 'readout-value', '—');
-  row.appendChild(value);
-  parent.appendChild(row);
-  return value;
+/** One label/value row. Returns the value node so it can be updated in place. */
+function metric(parent, label, value, tone = '') {
+  const target = parent.body ?? parent;
+  const row = el('div', 'metric');
+  row.appendChild(el('span', 'metric-label', label));
+  const val = el('span', 'metric-value' + (tone ? ' ' + tone : ''), value);
+  row.appendChild(val);
+  target.appendChild(row);
+  return val;
 }
 
-/** 13.25 becomes "13:15". */
+/** A small heading inside a section. */
+function sub(parent, text) {
+  parent.appendChild(el('div', 'metric-sub', text));
+}
+
 function formatHour(hour) {
   const h = Math.floor(hour);
   const m = Math.round((hour - h) * 60);

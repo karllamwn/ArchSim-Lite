@@ -87,6 +87,17 @@ export const environmentalAgent = {
     return Math.round(100 * (1 - (added - kb.acceptableShadowPercent) / span));
   },
 
+  // ── What this agent watches ────────────────────────────────────────────────
+  highlights(result) {
+    if (!result.worst) return ['sun below horizon'];
+    return [
+      `park shadow ${result.worst.addedByDesignPercent}%`,
+      `sun ${result.worst.sunAltitude}°`,
+      result.worst.label.toLowerCase(),
+      `${result.sampleCount} samples`
+    ];
+  },
+
   // ── Demo answers ───────────────────────────────────────────────────────────
   demoAnswer(topic, result, state) {
     const kb = environmentalAgent.knowledge;

@@ -90,6 +90,21 @@ export const architectAgent = {
     return Math.max(0, Math.min(100, Math.round(score)));
   },
 
+  // ── What this agent watches ────────────────────────────────────────────────
+  // Shown as chips in the activity feed, so a turn can be read at a glance.
+  highlights(result) {
+    const chips = [`${result.violationCount} rule issue${result.violationCount === 1 ? '' : 's'}`,
+                   `coverage ${result.siteCoveragePercent}%`];
+    for (const v of result.volumes) {
+      for (const i of v.setbackIssues) chips.push(`${v.id} ${i.side} setback`);
+    }
+    for (const p of result.pairs) {
+      if (p.overlap) chips.push(`${p.between.join('/')} overlap`);
+      else if (p.tooClose) chips.push(`${p.between.join('/')} spacing`);
+    }
+    return chips.slice(0, 4);
+  },
+
   // ── Demo answers ───────────────────────────────────────────────────────────
   // What this agent says when the architect walks over and asks directly.
   demoAnswer(topic, result, state) {

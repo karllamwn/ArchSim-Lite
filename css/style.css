@@ -1,5 +1,6 @@
-/* css/style.css — one stylesheet, plain CSS, no preprocessor.
-   Palette and fonts follow ArchSim V2 so the two projects read as a family. */
+/* css/style.css — plain CSS, no preprocessor.
+   Palette, type and layout follow the ArchSim V2 workspace so the workshop
+   tool and the thesis project read as the same piece of software. */
 
 :root {
   /* ── Palette, carried over from ArchSim V2 ── */
@@ -11,12 +12,13 @@
   --accent2:   #ff7f50;
   --text:      rgba(236, 247, 243, 0.92);
   --muted:     rgba(152, 181, 172, 0.85);
+  --faint:     rgba(152, 181, 172, 0.5);
   --panel:     rgba(10, 25, 23, 0.72);
   --panel-alt: rgba(8, 20, 19, 0.88);
 
   /* ── Fonts ── */
-  --font:         'VT323', monospace;
-  --font-display: 'VT323', monospace;
+  --font:  'VT323', monospace;
+  --pixel: 'Press Start 2P', monospace;
 
   /* ── Agent colours, drawn from the V2 set ── */
   --architect:     #6eabff;
@@ -27,557 +29,464 @@
 
 * { box-sizing: border-box; }
 
-html { height: 100%; }
-
-/* The page is a column: a fixed header, then everything else fills what is
-   left. Doing it with flex rather than a calc() means no magic number has to
-   match the header height, and the 3D canvas can never push the layout taller
-   than the window. */
-body {
+html, body {
   height: 100%;
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
   background: var(--bg);
   color: var(--text);
-  font: 17px/1.45 var(--font);
-  letter-spacing: 0.01em;
+  font: 17px/1.4 var(--font);
 }
 
-/* ── Header ───────────────────────────────────────────────────────────────── */
+body { display: flex; flex-direction: column; }
+
+/* ── Top bar ──────────────────────────────────────────────────────────────── */
 
 .topbar {
   flex: 0 0 auto;
   display: flex;
-  align-items: baseline;
-  gap: 20px;
-  padding: 10px 18px;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 14px;
   background: var(--panel-alt);
   border-bottom: 1px solid var(--border);
 }
 
-.brand {
-  font-family: var(--font-display);
-  font-size: 26px;
-  line-height: 1;
-  color: var(--text);
+.mode-tabs { display: flex; gap: 4px; }
+
+.mode-tab {
+  font-family: var(--pixel);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 9px 14px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
 }
-.brand span { color: var(--accent); }
-
-.tagline { color: var(--muted); font-size: 16px; }
-
-.topbar-right {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.milestone {
-  font-size: 15px;
-  color: var(--accent);
-  padding: 2px 12px;
-  border: 1px solid var(--border);
-  border-radius: 99px;
+.mode-tab:hover { color: var(--text); }
+.mode-tab-on {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
-/* Demo or live, stated where it cannot be missed. */
+.round-label {
+  font-family: var(--pixel);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
 .mode-chip {
-  font-size: 14px;
-  letter-spacing: 0.1em;
+  font-family: var(--pixel);
+  font-size: 8px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
-  padding: 2px 10px;
+  padding: 6px 10px;
   border: 1px solid var(--border);
-  border-radius: 99px;
+  border-radius: 3px;
 }
 .mode-chip.live { color: var(--bg); background: var(--accent); border-color: var(--accent); }
 
-/* ── Three-column layout ──────────────────────────────────────────────────── */
+/* ── Five columns ─────────────────────────────────────────────────────────── */
 
 .layout {
   flex: 1;
-  min-height: 0;          /* lets the three columns scroll instead of stretching */
-  display: grid;
-  grid-template-columns: 280px 1fr 340px;
-}
-
-.panel {
-  background: var(--panel);
-  overflow-y: auto;
   min-height: 0;
-}
-.panel-left  { border-right: 1px solid var(--border); }
-/* Stacked panels down one scrolling column, the way the V2 workspace arranges
-   its right-hand side. Plain block flow rather than flex: the transcript owns
-   its own scrolling at a fixed height, so nothing below it can be squeezed out
-   or overlapped when the window is short. */
-.panel-right {
-  border-left: 1px solid var(--border);
-  display: block;
-  overflow-y: auto;
+  display: grid;
+  grid-template-columns: 186px 1fr 1fr 250px 264px;
+
+  /* Three of the five columns are fixed, so on a narrow laptop the two flexible
+     ones would be crushed to nothing. Scroll sideways instead: a squeezed
+     viewport is worse than one you have to scroll to. */
+  min-width: 1180px;
 }
 
-.stage {
+body { overflow-x: auto; }
+.topbar, .actionbar { min-width: 1180px; }
+
+.col { min-width: 0; overflow-y: auto; }
+
+.col-metrics      { background: var(--panel); border-right: 1px solid var(--border); }
+.col-feed         { background: var(--panel); border-left: 1px solid var(--border); }
+.col-deliverables { background: var(--panel); border-left: 1px solid var(--border); }
+
+.col-stage {
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;       /* the canvas must never make this column taller */
+  overflow: hidden;
+  position: relative;
 }
 
-/* The design on the left, the room on the right. The lab backdrop is a portrait
-   0.67:1, so it wants a tall column: the office takes the full height and its
-   width is derived from that, which is what lets the room fill its pane exactly
-   instead of floating in empty bands. The 3D view takes whatever is left. */
-.stage-split {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: 1fr auto;
-}
-
-/* Too narrow for two columns: stack, and cap the room by height instead. */
-@media (max-width: 1100px) {
-  .stage-split { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
-}
-
-.viewport { flex: 1; min-height: 0; position: relative; }
-
-/* The renderer is told not to set inline sizes, so CSS drives the display size
-   and view/viewport.js keeps the drawing buffer matched to it. Positioning the
-   canvas absolutely takes it out of the flow entirely, so it can never feed its
-   own height back into the layout. */
-.viewport canvas {
-  display: block;
+.stage-label {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  top: 8px; left: 12px;
+  z-index: 2;
+  font-family: var(--pixel);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  color: var(--faint);
+  pointer-events: none;
 }
 
-.stage-note {
-  padding: 7px 16px;
-  font-size: 15px;
-  color: var(--muted);
+.viewport { flex: 1; min-height: 0; }
+.viewport canvas { display: block; width: 100%; height: 100%; }
+
+/* ── Round thumbnails under the viewport ──────────────────────────────────── */
+
+.filmstrip {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px;
+  overflow-x: auto;
   background: var(--panel-alt);
   border-top: 1px solid var(--border);
+  min-height: 62px;
+}
+
+.frame {
+  flex: 0 0 auto;
+  width: 74px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--bg);
+  cursor: default;
+}
+.frame img { display: block; width: 100%; height: 40px; object-fit: cover; }
+.frame-label {
+  font-family: var(--pixel);
+  font-size: 6px;
+  letter-spacing: 0.04em;
+  text-align: center;
+  padding: 3px 0;
+  color: var(--faint);
+}
+.frame-latest { border-color: var(--accent); }
+.frame-latest .frame-label { color: var(--accent); }
+
+.filmstrip-empty {
+  align-self: center;
+  padding-left: 6px;
+  font-size: 15px;
+  color: var(--faint);
 }
 
 /* ── Panel sections ───────────────────────────────────────────────────────── */
 
-.panel-section { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.sect { border-bottom: 1px solid var(--border); }
 
-.panel-section h2 {
-  margin: 0 0 9px;
-  font-size: 14px;
-  font-weight: normal;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+.sect-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--pixel);
+  font-size: 8px;
+  letter-spacing: 0.08em;
   color: var(--accent);
+  text-align: left;
+}
+.sect-head:hover { color: var(--text); }
+.sect-head .caret { margin-left: auto; color: var(--faint); font-size: 9px; }
+.sect-head .diamond { color: var(--accent); }
+
+.sect-body { padding: 0 10px 9px; }
+.sect.collapsed .sect-body { display: none; }
+
+.sect-note {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--faint);
 }
 
-.placeholder { margin: 0; font-size: 16px; color: var(--muted); }
+/* ── Dense metric rows: the left column's whole vocabulary ────────────────── */
+
+.metric {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 1px 0;
+  font-size: 15px;
+}
+.metric-label { color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.metric-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  white-space: nowrap;
+}
+.metric-value.good { color: var(--accent); }
+.metric-value.warn { color: var(--accent2); }
+
+.metric-sub {
+  font-family: var(--pixel);
+  font-size: 6px;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+  padding: 5px 0 2px;
+}
 
 /* ── Controls ─────────────────────────────────────────────────────────────── */
 
-.control { margin-bottom: 10px; }
+.control { margin-bottom: 7px; }
 
 .control-head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
-
-.control-head label { font-size: 16px; color: var(--muted); }
+.control-head label { font-size: 15px; color: var(--faint); }
 
 .control-value {
   font-variant-numeric: tabular-nums;
-  font-size: 17px;
+  font-size: 15px;
   color: var(--accent);
 }
 
-.slider {
-  width: 100%;
-  accent-color: var(--accent);
-  margin: 0;
-  background: transparent;
-}
+.slider { width: 100%; accent-color: var(--accent); margin: 0; height: 14px; }
 
 /* ── Tabs and buttons ─────────────────────────────────────────────────────── */
 
-.tab-row { display: flex; gap: 6px; margin-bottom: 9px; }
+.tab-row { display: flex; gap: 4px; margin-bottom: 7px; }
 
 .tab {
   flex: 1;
-  padding: 5px 0;
+  padding: 4px 0;
   font: inherit;
-  font-size: 18px;
+  font-size: 16px;
   color: var(--muted);
   background: var(--bg1);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 3px;
   cursor: pointer;
 }
-.tab-on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--bg);
-}
+.tab-on { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 
-.button-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.button-row { display: flex; flex-wrap: wrap; gap: 4px; }
 
 .btn {
   flex: 1;
   min-width: 0;
-  padding: 5px 8px;
+  padding: 4px 7px;
   font: inherit;
-  font-size: 16px;
+  font-size: 15px;
   background: var(--bg1);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 3px;
   cursor: pointer;
   white-space: nowrap;
 }
 .btn:hover:not(:disabled) { border-color: var(--border-hi); color: var(--accent); }
 .btn:disabled { opacity: 0.35; cursor: default; }
 
-.btn-small { font-size: 15px; padding: 4px 4px; }
-.btn-quiet { color: var(--muted); }
-.btn-on, .btn-on:hover {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--bg);
-}
+.btn-small { font-size: 14px; padding: 3px 5px; }
+.btn-quiet { color: var(--faint); }
+.btn-on, .btn-on:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.1); color: var(--bg); }
 
-.btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--bg);
-}
-.btn-primary:hover:not(:disabled) { background: var(--accent); color: var(--bg); filter: brightness(1.1); }
-
-/* ── Readouts ─────────────────────────────────────────────────────────────── */
-
-.readout {
-  display: flex;
-  justify-content: space-between;
-  padding: 2px 0;
-  font-size: 16px;
-}
-.readout-label { color: var(--muted); }
-.readout-value { font-variant-numeric: tabular-nums; color: var(--text); }
-.readout-value.warn { color: var(--accent2); }
-
-/* ── The Multi-Agents Design Lab ──────────────────────────────────────────── */
-/* A fixed strip under the 3D view. The consultants stand at desks; when one
-   speaks it steps forward and the others dim. Static by design — see
-   ui/office.js for why there is no walking. */
-
-/* The pane takes the backdrop's proportions, so the room fills it edge to edge
-   and the figure percentages line up with the desks exactly. Height comes from
-   the column, width follows from the ratio. */
-.office {
-  position: relative;
-  height: 100%;
-  aspect-ratio: 900 / 1342;
-  overflow: hidden;
-  border-left: 1px solid var(--border);
-}
-
-@media (max-width: 1100px) {
-  .office {
-    height: auto;
-    width: 100%;
-    max-height: 46vh;
-    border-left: none;
-    border-top: 1px solid var(--border);
-  }
-}
-
-.office-room {
-  position: absolute;
-  inset: 0;
-  background-image: url('../assets/office/lab.png');
-  background-size: 100% 100%;
-  image-rendering: pixelated;
-
-  /* Makes cqw available below, so the consultants scale with the room instead
-     of shrinking away on a large display. */
-  container-type: size;
-}
-
-/* A light vignette so the room settles into the dark interface without
-   muddying the artwork. */
-.office-room::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at 50% 45%, rgba(13,23,22,0) 45%, rgba(13,23,22,0.45) 100%);
-  pointer-events: none;
-}
-
-.figure {
-  position: absolute;
-  transform: translate(-50%, -100%);
-  transition: transform 180ms ease, opacity 180ms ease;
-  z-index: 1;
-}
-
-.office-room.has-speaker .figure { opacity: 0.45; }
-.office-room.has-speaker .figure.speaking { opacity: 1; }
-
-.figure.speaking {
-  transform: translate(-50%, -108%) scale(1.12);
-  z-index: 3;
-}
-
-/* Sized as a share of the room rather than in pixels, so a consultant is the
-   same size relative to the desks on any display. */
-.figure-art {
-  display: block;
-  width: 8.5cqw;
-  min-width: 30px;
-  height: auto;
-  image-rendering: pixelated;
-  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.55));
-}
-
-.figure-letter {
-  width: 8.5cqw;
-  min-width: 30px;
-  aspect-ratio: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 5cqw;
-  color: var(--agent-color);
-  background: var(--bg1);
-  border: 2px solid var(--agent-color);
-  border-radius: 4px;
-}
-
-.figure-name {
-  margin-top: 1px;
-  text-align: center;
-  font-size: 13px;
+.btn-export {
+  flex: 0 0 auto;
+  font-family: var(--pixel);
+  font-size: 7px;
+  padding: 6px 8px;
   letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--agent-color);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
-  white-space: nowrap;
 }
 
-.bubble {
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translate(-50%, 6px);
-  width: 220px;
-  margin-bottom: 8px;
-  padding: 7px 9px;
-  background: var(--panel-alt);
-  border: 1px solid var(--agent-color);
-  border-radius: 5px;
-  font-size: 15px;
-  line-height: 1.3;
-  color: var(--text);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 180ms ease, transform 180ms ease;
-}
+/* ── Agent roster ─────────────────────────────────────────────────────────── */
 
-.bubble.showing { opacity: 1; transform: translate(-50%, 0); }
-.bubble-error { border-color: var(--accent2); color: var(--accent2); }
+.roster { display: flex; flex-direction: column; gap: 1px; }
 
-/* The little tail pointing down at whoever is speaking. */
-.bubble::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  margin-left: -5px;
-  border: 5px solid transparent;
-  border-top-color: var(--agent-color);
-}
-
-/* ── Convergence charts ───────────────────────────────────────────────────── */
-/* Stacked at the foot of the right column, under the transcript: how the score
-   has moved round by round, and where the design stands now. */
-
-.charts { display: flex; flex-direction: column; gap: 8px; }
-
-.chart { display: flex; flex-direction: column; min-width: 0; }
-
-.chart h3 {
-  margin: 0 0 2px;
-  font-size: 13px;
-  font-weight: normal;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-}
-
-.chart-body { display: flex; justify-content: center; }
-
-.chart-svg { display: block; width: 100%; height: auto; }
-
-/* The radar is square, so left at full width it would tower over the line
-   chart. Hold it to something closer to the height of its neighbour. */
-.chart:last-child .chart-svg { max-width: 210px; }
-
-/* ── Debug panel (milestone 2) ────────────────────────────────────────────── */
-
-.tool-block { margin-bottom: 10px; }
-
-.tool-name {
+.roster-row {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 16px;
-  color: var(--text);
-  margin-bottom: 4px;
-}
-.tool-name .btn { flex: 0 0 auto; }
-.tool-name code { color: var(--accent); font-family: var(--font); }
-
-.tool-output {
-  margin: 0;
-  padding: 8px 10px;
-  background: var(--panel-alt);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font-family: var(--font);
+  padding: 2px 0;
   font-size: 15px;
-  line-height: 1.35;
   color: var(--muted);
-  white-space: pre-wrap;
-  overflow-x: auto;
-  max-height: 220px;
+  cursor: default;
 }
+.roster-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--agent-color);
+  flex: 0 0 auto;
+}
+.roster-row.active { color: var(--text); }
+.roster-row.active .roster-dot { box-shadow: 0 0 0 3px color-mix(in srgb, var(--agent-color) 30%, transparent); }
+.roster-score { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--faint); }
 
-/* ── Conversation (milestones 3-4) ────────────────────────────────────────── */
+/* ── Activity feed ────────────────────────────────────────────────────────── */
 
-.conversation {
-  height: 46vh;
-  min-height: 220px;
+.feed {
+  height: 34vh;
+  min-height: 190px;
   overflow-y: auto;
-  padding: 12px 14px;
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 9px;
   border-bottom: 1px solid var(--border);
 }
 
-.msg {
-  border-left: 3px solid var(--agent-color, var(--accent));
-  background: var(--panel-alt);
-  padding: 8px 10px;
-  border-radius: 0 4px 4px 0;
-}
+.msg { }
 
 .msg-head {
   display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-bottom: 3px;
-}
-.msg-head .msg-who { flex: 1; }
-
-/* ── Agent avatars ────────────────────────────────────────────────────────── */
-/* Pixel portraits carried over from ArchSim V2. image-rendering: pixelated
-   keeps the pixels crisp instead of blurring them when the browser scales. */
-
-.avatar {
-  flex: 0 0 auto;
-  width: 26px;
-  height: 26px;
-  object-fit: contain;
-  object-position: top center;
-  image-rendering: pixelated;
-  background: var(--bg1);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 1px;
-}
-
-/* Fallback for an agent with no artwork: its initial, in its own colour. */
-.avatar-letter {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 17px;
-  line-height: 1;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
 }
 
 .msg-who {
-  font-size: 16px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--pixel);
+  font-size: 7px;
+  letter-spacing: 0.06em;
   color: var(--agent-color, var(--accent));
 }
 
-.msg-round { font-size: 14px; color: var(--muted); }
+.msg-round { font-size: 14px; color: var(--faint); }
 
-.msg-body { font-size: 16px; color: var(--text); }
+.msg-body { font-size: 15px; line-height: 1.35; color: var(--text); margin-top: 2px; }
+
+/* The keyword chips that make a turn scannable at a glance. */
+.chips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.chip {
+  font-size: 13px;
+  line-height: 1;
+  padding: 3px 5px;
+  color: var(--agent-color, var(--accent));
+  border: 1px solid color-mix(in srgb, var(--agent-color, var(--accent)) 40%, transparent);
+  border-radius: 2px;
+  white-space: nowrap;
+}
 
 .msg-evidence {
-  margin-top: 5px;
-  padding-top: 5px;
-  border-top: 1px dashed var(--border);
+  margin-top: 4px;
   font-size: 14px;
-  color: var(--muted);
+  color: var(--faint);
+  line-height: 1.3;
 }
-.msg-evidence b { color: var(--accent); font-weight: normal; }
 
 .msg-system {
-  border-left-color: var(--muted);
+  font-size: 14px;
+  color: var(--faint);
   text-align: center;
-  color: var(--muted);
-  font-size: 15px;
-  background: none;
-  border-left: none;
-  padding: 2px 0;
 }
 
-.msg-error { border-left-color: var(--accent2); }
 .msg-error .msg-who { color: var(--accent2); }
+.msg-question .msg-body { color: var(--designer); }
 
 /* ── Proposal cards ───────────────────────────────────────────────────────── */
 
 .proposal {
   border: 1px solid var(--agent-color, var(--accent));
-  border-radius: 4px;
-  padding: 8px 10px;
+  border-radius: 3px;
+  padding: 7px 8px;
   background: var(--panel-alt);
 }
 
-.proposal-change {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 17px;
-  color: var(--text);
-  margin-bottom: 5px;
-}
+.proposal-change { font-size: 16px; margin-bottom: 4px; }
 .proposal-change b { color: var(--agent-color, var(--accent)); font-weight: normal; }
-
-.proposal-actions { display: flex; gap: 6px; }
-
-.proposal-done {
-  font-size: 15px;
-  color: var(--muted);
-}
+.proposal-actions { display: flex; gap: 4px; }
+.proposal-done { font-size: 14px; color: var(--faint); }
 .proposal-done.accepted { color: var(--accent); }
 .proposal-done.rejected { color: var(--accent2); }
+
+/* ── Agent chat ───────────────────────────────────────────────────────────── */
+
+.chat-row { display: flex; gap: 4px; }
+
+.chat-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 7px;
+  font: inherit;
+  font-size: 15px;
+  background: var(--bg1);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+.chat-input::placeholder { color: var(--faint); }
+.chat-input:disabled { opacity: 0.5; }
+
+.quick-list { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+
+.quick {
+  text-align: left;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.25;
+  color: var(--muted);
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.quick:hover:not(:disabled) { color: var(--accent); border-color: var(--border-hi); }
+.quick:disabled { opacity: 0.35; cursor: default; }
+
+/* ── Deliverables ─────────────────────────────────────────────────────────── */
+
+.deliverable-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+}
+.deliverable-head h3 {
+  margin: 0;
+  font-family: var(--pixel);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  font-weight: normal;
+}
+.deliverable-head .btn-export { margin-left: auto; }
+
+.chart-body { display: flex; justify-content: center; padding: 0 8px 8px; }
+.chart-svg { display: block; width: 100%; height: auto; }
+
+.score-line {
+  font-family: var(--pixel);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-align: center;
+  color: var(--accent);
+  padding: 2px 0 8px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 10px;
+  padding: 0 8px 6px;
+  font-size: 14px;
+}
+.legend-item { display: flex; align-items: center; gap: 4px; color: var(--muted); }
+.legend-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--agent-color); }
 
 /* ── Decision log ─────────────────────────────────────────────────────────── */
 
 .log-entry {
-  font-size: 15px;
-  padding: 4px 0;
+  font-size: 14px;
+  line-height: 1.3;
+  padding: 3px 0;
   border-bottom: 1px dashed var(--border);
   color: var(--muted);
 }
@@ -585,33 +494,147 @@ body {
 .log-entry b { color: var(--text); font-weight: normal; }
 .log-entry .log-agent { color: var(--agent-color, var(--accent)); }
 
-/* ── API key row ──────────────────────────────────────────────────────────── */
+/* ── Bottom action bar ────────────────────────────────────────────────────── */
 
-.key-row { display: flex; gap: 6px; }
+.actionbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 7px 14px;
+  background: var(--panel-alt);
+  border-top: 1px solid var(--border);
+}
 
-.key-input {
-  flex: 1;
-  min-width: 0;
-  padding: 5px 8px;
-  font: inherit;
-  font-size: 15px;
-  background: var(--bg1);
+.status {
+  font-family: var(--pixel);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.status.busy { color: var(--accent); }
+
+.actions { margin-left: auto; display: flex; gap: 6px; }
+
+.action {
+  font-family: var(--pixel);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  padding: 9px 13px;
   color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-}
-.key-input::placeholder { color: var(--muted); }
-
-.mode-note { margin: 6px 0 0; font-size: 15px; color: var(--muted); }
-.mode-note b { color: var(--accent); font-weight: normal; }
-
-/* ── Scrollbars, so they do not break the dark theme ──────────────────────── */
-
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb {
   background: var(--bg1);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 3px;
+  cursor: pointer;
 }
+.action:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.action:disabled { opacity: 0.35; cursor: default; }
+.action-primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.action-primary:hover:not(:disabled) { filter: brightness(1.1); color: var(--bg); }
+
+/* ── The office ───────────────────────────────────────────────────────────── */
+
+.col-office { position: relative; overflow: hidden; border-left: 1px solid var(--border); }
+
+.office-room {
+  position: absolute;
+  inset: 0;
+  background-image: url('../assets/office/lab.png');
+  background-size: cover;
+  background-position: center top;
+  image-rendering: pixelated;
+}
+
+.office-room::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 42%, rgba(13,23,22,0) 50%, rgba(13,23,22,0.5) 100%);
+  pointer-events: none;
+}
+
+.figure {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: filter 160ms ease;
+  z-index: 2;
+}
+
+.figure-art {
+  width: 44px;
+  height: auto;
+  image-rendering: pixelated;
+  display: block;
+}
+
+.figure-letter {
+  width: 30px; height: 30px;
+  display: grid;
+  place-items: center;
+  font-family: var(--pixel);
+  font-size: 11px;
+  color: var(--bg);
+  background: var(--agent-color);
+  border-radius: 3px;
+}
+
+.figure-name {
+  margin-top: 1px;
+  font-family: var(--pixel);
+  font-size: 6px;
+  letter-spacing: 0.04em;
+  color: var(--agent-color);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.8);
+  white-space: nowrap;
+}
+
+.office-room.has-speaker .figure { filter: brightness(0.5) saturate(0.4); }
+.office-room.has-speaker .figure.speaking { filter: none; }
+.figure.speaking .figure-name { color: var(--text); }
+
+/* The bubble, drawn like the one in the V2 workspace: a pale panel above the
+   speaker with a tail pointing down at them. */
+.bubble {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  width: max-content;
+  max-width: 250px;
+  padding: 8px 10px;
+  background: #e9eef0;
+  color: #1d2b28;
+  font-size: 15px;
+  line-height: 1.3;
+  border-radius: 3px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+  z-index: 5;
+}
+.bubble.showing { opacity: 1; transform: translateX(-50%) translateY(0); }
+.bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 7px solid transparent;
+  border-top-color: #e9eef0;
+}
+.bubble-error { background: #ffd9cc; color: #6b2a14; }
+.bubble-error::after { border-top-color: #ffd9cc; }
+
+/* ── Scrollbars ───────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--bg1); border: 1px solid var(--border); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border); }
