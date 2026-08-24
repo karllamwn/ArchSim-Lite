@@ -5,6 +5,8 @@
 // in one file means a new parameter appears everywhere at once, and an agent
 // can never propose a value the slider would not allow.
 
+import { PLAN_SHAPES, SECTION_TYPES } from './form.js';
+
 export const PARAMETERS = [
   { key: 'x',           label: 'East / west',   min: -30, max: 30, step: 0.5, unit: 'm' },
   { key: 'z',           label: 'North / south', min: -20, max: 20, step: 0.5, unit: 'm' },
@@ -26,9 +28,32 @@ export const PARAMETERS = [
   { key: 'setbackDepth', label: 'Step depth',    min: 0.5, max: 4,   step: 0.5,  unit: 'm' }
 ];
 
-/** Look up one parameter definition by key. Returns undefined if unknown. */
+// Parameters whose value is a choice from a menu rather than a quantity. They
+// go through the same proposal pipeline as the numbers, because the most
+// effective move available to an agent is often a change of form, not a nudge
+// of a dimension: on the demonstration site, switching to a podium cuts the
+// added park shadow further than losing two whole floors would.
+export const CHOICE_PARAMETERS = [
+  {
+    key: 'plan',
+    label: 'Plan',
+    options: PLAN_SHAPES.map(s => ({ value: s.id, label: s.label }))
+  },
+  {
+    key: 'section',
+    label: 'Section',
+    options: SECTION_TYPES.map(s => ({ value: s.id, label: s.label }))
+  }
+];
+
+/** Look up one parameter definition by key, numeric or choice. */
 export function getParameter(key) {
-  return PARAMETERS.find(p => p.key === key);
+  return PARAMETERS.find(p => p.key === key) ?? CHOICE_PARAMETERS.find(p => p.key === key);
+}
+
+/** Is this parameter a menu choice rather than a number? */
+export function isChoice(key) {
+  return CHOICE_PARAMETERS.some(p => p.key === key);
 }
 
 /**
@@ -38,6 +63,15 @@ export function getParameter(key) {
 export function checkValue(key, value) {
   const param = getParameter(key);
   if (!param) return `"${key}" is not a design parameter.`;
+
+  if (isChoice(param.key)) {
+    const allowed = param.options.map(o => o.value);
+    if (!allowed.includes(value)) {
+      return `${param.label} must be one of ${allowed.join(', ')}, got ${JSON.stringify(value)}.`;
+    }
+    return null;
+  }
+
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return `${param.label} needs a number, got ${JSON.stringify(value)}.`;
   }
@@ -51,6 +85,7 @@ export function checkValue(key, value) {
 export function snapValue(key, value) {
   const param = getParameter(key);
   if (!param) return value;
+  if (isChoice(key)) return value;   // a choice is already exactly itself
   const snapped = Math.round(value / param.step) * param.step;
   // Guard against floating point dust, e.g. 3.2000000000000006
   return Math.round(snapped * 1000) / 1000;
@@ -60,5 +95,8 @@ export function snapValue(key, value) {
 export function formatValue(key, value) {
   const param = getParameter(key);
   if (!param) return String(value);
+  if (isChoice(key)) {
+    return param.options.find(o => o.value === value)?.label ?? String(value);
+  }
   return `${value}${param.unit}`;
 }

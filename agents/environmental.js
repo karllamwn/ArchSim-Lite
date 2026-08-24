@@ -43,7 +43,7 @@ export const environmentalAgent = {
       + 'every test time, and treat anything above 35% as a serious problem. '
       + 'Judge the design on what it adds, not on shadow that would fall anyway.',
 
-  canPropose: ['floors', 'z', 'd', 'rotation'],
+  canPropose: ['section', 'floors', 'z', 'd', 'rotation'],
 
   // ── TOOL ───────────────────────────────────────────────────────────────────
   tool: {
@@ -191,18 +191,55 @@ export const environmentalAgent = {
     const severity = worst.addedByDesignPercent >= kb.seriousShadowPercent
       ? 'serious' : 'over threshold';
 
+    // Ask for the form change before the floor count. Reshaping the upper part
+    // of the building buys more shadow than cutting storeys does, and it costs
+    // the architect far less floor area, so it is the proposal most likely to
+    // be accepted. Only once the section is doing its share is height worth
+    // arguing about.
+    const section = tallest.section ?? 'straight';
+    if (section === 'straight') {
+      return {
+        argument: `This is ${severity}. At ${worst.label} the sun is only `
+                + `${worst.sunAltitude}° up and the park is ${worst.shadowedPercent}% shaded. `
+                + `${worst.existingPercent}% of that is the existing blocks, but `
+                + `${worst.addedByDesignPercent}% is ours, against a limit of `
+                + `${kb.acceptableShadowPercent}%. It is a straight extrusion, so every `
+                + `storey throws the same long shadow. Reshape it before you shrink it.`,
+        proposal: {
+          volumeId: tallest.id,
+          parameter: 'section',
+          value: 'podium',
+          reason: `A podium keeps the street wall and sets the tower back, so the part of `
+                + `the building that reaches the park is much narrower.`
+        }
+      };
+    }
+
+    if (section === 'stepped') {
+      return {
+        argument: `Better, but not enough. ${worst.addedByDesignPercent}% of the park is `
+                + `still ours at ${worst.label}, against ${kb.acceptableShadowPercent}%. `
+                + `Stepping helps near the top; tapering the whole profile helps all the way up.`,
+        proposal: {
+          volumeId: tallest.id,
+          parameter: 'section',
+          value: 'tapered',
+          reason: `A continuous taper removes mass at every level, not only above the setback.`
+        }
+      };
+    }
+
     return {
-      argument: `This is ${severity}. At ${worst.label} the sun is only `
-              + `${worst.sunAltitude}° up and the park is ${worst.shadowedPercent}% shaded. `
-              + `${worst.existingPercent}% of that is the existing blocks, but `
-              + `${worst.addedByDesignPercent}% is ours, against a limit of `
-              + `${kb.acceptableShadowPercent}%. Height is what is driving it.`,
+      argument: `Still ${severity}. At ${worst.label} the sun is only `
+              + `${worst.sunAltitude}° up and ${worst.addedByDesignPercent}% of the park is `
+              + `ours, against ${kb.acceptableShadowPercent}%. The section is already `
+              + `working, so what is left is height.`,
       proposal: {
         volumeId: tallest.id,
         parameter: 'floors',
         value: Math.max(1, tallest.floors - 2),
-        reason: `Two fewer floors on volume ${tallest.id} shortens the winter shadow `
-              + `where it reaches furthest into the park.`
+        reason: `With the form doing what it can, two fewer floors is what still moves the `
+              + `winter shadow out of the park.`
       }
     };
   }

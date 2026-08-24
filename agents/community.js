@@ -68,7 +68,7 @@ export const communityAgent = {
   goal: 'Keep overall community satisfaction at or above 60 out of 100, and '
       + 'speak up first for whichever concern scores lowest.',
 
-  canPropose: ['floors', 'w', 'd', 'z'],
+  canPropose: ['plan', 'floors', 'w', 'd', 'z'],
 
   // ── TOOL ───────────────────────────────────────────────────────────────────
   tool: {
@@ -192,10 +192,15 @@ export const communityAgent = {
     );
 
     // Argue about whichever concern scored worst, and propose against that.
+    // Bulk is a shape complaint before it is a size one: a courtyard reads as
+    // less overbearing from the street than the same floor area as a slab, and
+    // it keeps the area the architect is fighting for.
     const proposalByConcern = {
       parkShadow: { parameter: 'floors', value: Math.max(1, tallest.floors - 2) },
       height:     { parameter: 'floors', value: Math.max(1, tallest.floors - 3) },
-      bulk:       { parameter: 'w',      value: Math.max(6, tallest.w - 5) }
+      bulk: (tallest.plan ?? 'rect') === 'rect'
+        ? { parameter: 'plan', value: 'courtyard' }
+        : { parameter: 'w', value: Math.max(6, tallest.w - 5) }
     };
     const move = proposalByConcern[lowest.id] ?? proposalByConcern.height;
 

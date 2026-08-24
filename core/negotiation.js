@@ -14,7 +14,7 @@
 
 import { state } from './state.js';
 import { AGENTS } from '../agents/index.js';
-import { checkValue, snapValue, getParameter } from './parameters.js';
+import { checkValue, snapValue, getParameter, isChoice } from './parameters.js';
 import { askForJSON, hasApiKey } from '../api/gemini.js';
 import { shadowAnalysis } from '../tools/shadowAnalysis.js';
 import { environmentalAgent } from '../agents/environmental.js';
@@ -36,9 +36,13 @@ const REPLY_SCHEMA = {
     volumeId:    { type: 'string' },
     parameter:   { type: 'string' },
     value:       { type: 'number' },
+    // Used instead of `value` when the parameter is a menu choice such as plan
+    // or section. Kept as a separate field because a structured-output schema
+    // wants one concrete type per property.
+    choice:      { type: 'string' },
     reason:      { type: 'string' }
   },
-  required: ['argument', 'wantsChange', 'volumeId', 'parameter', 'value', 'reason']
+  required: ['argument', 'wantsChange', 'volumeId', 'parameter', 'value', 'choice', 'reason']
 };
 
 /**
@@ -274,6 +278,14 @@ function buildSystemPrompt(agent) {
     '- Stay inside your own discipline. Do not argue about matters that belong',
     '  to the other consultants.',
     `- You may only propose changes to: ${agent.canPropose.join(', ')}.`,
+    // Spell out the menus. A model cannot guess that "section" wants the word
+    // "podium" rather than a number, and a rejected proposal helps nobody.
+    ...agent.canPropose.filter(isChoice).map(key => {
+      const param = getParameter(key);
+      return `- ${param.label} is a choice. Put the option in "choice", not "value". `
+           + `Options: ${param.options.map(o => o.value).join(', ')}.`;
+    }),
+    '- For every other parameter put the number in "value" and leave "choice" empty.',
     '- Keep the argument to at most three sentences. Be direct. Disagree when',
     '  the numbers say you should.',
     '- Set wantsChange to false when the design already meets your goal. Filling',
@@ -323,12 +335,21 @@ function clampScore(value) {
 
 function toReply(demoResponse) {
   const p = demoResponse.proposal;
+
+  // A demo agent writes one `value` whatever the parameter is, because that is
+  // the obvious way to write it and the template should not have to explain a
+  // second field. Sort it into the right slot here: a choice parameter such as
+  // section carries a word, everything else a number.
+  const choiceValue = p && isChoice(p.parameter) ? String(p.value) : '';
+  const numberValue = p && !isChoice(p.parameter) ? p.value : 0;
+
   return {
     argument: demoResponse.argument,
     wantsChange: Boolean(p),
     volumeId: p ? p.volumeId : '',
     parameter: p ? p.parameter : '',
-    value: p ? p.value : 0,
+    value: numberValue,
+    choice: choiceValue,
     reason: p ? p.reason : ''
   };
 }
@@ -340,7 +361,11 @@ function toReply(demoResponse) {
  * @returns {{ok: true, value: object} | {ok: false, error: string}}
  */
 function validateProposal(agent, reply) {
-  const { volumeId, parameter, value, reason } = reply;
+  const { volumeId, parameter, reason } = reply;
+
+  // A choice parameter reads its value from `choice`, a numeric one from
+  // `value`. Everything after this point treats them the same.
+  const value = isChoice(parameter) ? reply.choice : reply.value;
 
   if (!agent.canPropose.includes(parameter)) {
     return { ok: false, error: `${agent.name} may not propose changes to "${parameter}".` };
@@ -366,6 +391,7 @@ function validateProposal(agent, reply) {
       parameter,
       from: volume[parameter],
       to: snapped,
+      isChoice: isChoice(parameter),
       reason: String(reason || '').trim() || 'No reason given.',
       label: getParameter(parameter).label
     }

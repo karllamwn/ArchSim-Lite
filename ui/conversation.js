@@ -5,7 +5,7 @@
 // agent's current score), ACTIVITY FEED (the argument as it happens), and
 // AGENT CHAT (ask one of them a question).
 
-import { state, updateVolume } from '../core/state.js';
+import { state, updateVolume, setForm } from '../core/state.js';
 import { runRound, isRunning, currentRound, askAgent, ASK_TOPICS } from '../core/negotiation.js';
 import { getApiKey, setApiKey, hasApiKey } from '../api/gemini.js';
 import { record } from '../core/log.js';
@@ -182,7 +182,10 @@ function addProposal({ agent, proposal, evidence, round }) {
       return;
     }
 
-    updateVolume(proposal.volumeId, { [proposal.parameter]: proposal.to });
+    // A choice is not a slider value, so it does not go through the numeric
+    // bounds check that updateVolume applies.
+    const apply = proposal.isChoice ? setForm : updateVolume;
+    apply(proposal.volumeId, { [proposal.parameter]: proposal.to });
     record({
       round, agent: agent.name, agentColor: agent.color,
       volumeId: proposal.volumeId, parameter: proposal.parameter,
