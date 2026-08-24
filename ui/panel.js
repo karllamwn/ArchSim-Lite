@@ -35,12 +35,17 @@ const PRESET_DATES = [
 export function initPanel(container) {
   container.innerHTML = '';
 
-  const zoning  = section(container, 'SITE & ZONING');
-  const massing = section(container, 'MASSING METRICS');
+  // Order matters. The controls come first, because the plan and section
+  // pickers are the most interesting thing in this column and burying them
+  // under two blocks of readouts hides the fact that a volume can be anything
+  // other than a box. The two reference sections start collapsed for the same
+  // reason: they are worth reading, but not before you have drawn anything.
   const params  = section(container, 'DESIGN PARAMS');
+  const massing = section(container, 'MASSING METRICS');
   const shadow  = section(container, 'SHADOW (park)');
   const layout  = section(container, 'LAYOUT CHECK');
   const survey  = section(container, 'COMMUNITY SURVEY');
+  const zoning  = section(container, 'SITE & ZONING', true);
   const sun     = section(container, 'SUN', true);
 
   // ── Site and zoning: fixed, so build it once ───────────────────────────────
@@ -60,20 +65,9 @@ export function initPanel(container) {
   const layoutBody = layout.body;
   const surveyBody = survey.body;
 
-  // ── Volume tabs + sliders ──────────────────────────────────────────────────
+  // ── Volume tabs ────────────────────────────────────────────────────────────
   const tabRow = el('div', 'tab-row');
   params.body.appendChild(tabRow);
-
-  const volumeButtons = el('div', 'button-row');
-  params.body.appendChild(volumeButtons);
-
-  const addBtn = el('button', 'btn btn-small', '+ Volume');
-  addBtn.onclick = () => addVolume();
-  volumeButtons.appendChild(addBtn);
-
-  const removeBtn = el('button', 'btn btn-small btn-quiet', 'Remove');
-  removeBtn.onclick = () => removeVolume(state.selectedId);
-  volumeButtons.appendChild(removeBtn);
 
   // ── Plan and section ───────────────────────────────────────────────────────
   // Two menus rather than sliders: they choose a kind of building, not a
@@ -128,6 +122,18 @@ export function initPanel(container) {
     sliderLabels[control.key] = value;
     sliderRows[control.key] = row;
   }
+
+  const volumeButtons = el('div', 'button-row');
+  volumeButtons.style.marginTop = '8px';
+  params.body.appendChild(volumeButtons);
+
+  const addBtn = el('button', 'btn btn-small', '+ Volume');
+  addBtn.onclick = () => addVolume();
+  volumeButtons.appendChild(addBtn);
+
+  const removeBtn = el('button', 'btn btn-small btn-quiet', 'Remove');
+  removeBtn.onclick = () => removeVolume(state.selectedId);
+  volumeButtons.appendChild(removeBtn);
 
   // ── Sun controls ───────────────────────────────────────────────────────────
   const dateRow = el('div', 'button-row');
