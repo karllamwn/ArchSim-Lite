@@ -152,7 +152,7 @@ export const communityAgent = {
     }
 
     const ally = others.find(o => o.wantsChange && o.parameter === 'floors');
-    const architect = others.find(o => o.id === 'architect');
+    const planner = others.find(o => o.id === 'planner');
 
     if (lowest.id === 'parkShadow' && ally) {
       return `${ally.name} is measuring the same thing I am hearing about. `
@@ -161,7 +161,7 @@ export const communityAgent = {
            + `${lowest.satisfaction}/100. I support the reduction.`;
     }
 
-    if (architect) {
+    if (planner) {
       return `The floor-area point is fair, and I am not asking for the building to `
            + `disappear. But ${lowest.label.toLowerCase()} scores `
            + `${lowest.satisfaction}/100 and drags the total to `

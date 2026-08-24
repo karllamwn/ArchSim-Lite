@@ -8,12 +8,12 @@
 //
 // Order matters only in that agents speak in this order each round.
 
-import { architectAgent } from './architect.js';
+import { sitePlannerAgent } from './sitePlanner.js';
 import { environmentalAgent } from './environmental.js';
 import { communityAgent } from './community.js';
 
 export const AGENTS = [
-  architectAgent,
+  sitePlannerAgent,
   environmentalAgent,
   communityAgent
 ];

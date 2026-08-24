@@ -19,9 +19,9 @@ import {
 } from '../core/form.js';
 
 import { shadowAnalysis } from '../tools/shadowAnalysis.js';
-import { layoutCheck } from '../tools/layoutCheck.js';
+import { envelopeCheck } from '../tools/envelopeCheck.js';
 import { surveyScore } from '../tools/surveyScore.js';
-import { architectAgent } from '../agents/architect.js';
+import { sitePlannerAgent } from '../agents/sitePlanner.js';
 import { environmentalAgent } from '../agents/environmental.js';
 import { communityAgent } from '../agents/community.js';
 
@@ -43,7 +43,7 @@ export function initPanel(container) {
   const params  = section(container, 'DESIGN PARAMS');
   const massing = section(container, 'MASSING METRICS');
   const shadow  = section(container, 'SHADOW (park)');
-  const layout  = section(container, 'LAYOUT CHECK');
+  const envelope = section(container, 'ENVELOPE');
   const survey  = section(container, 'COMMUNITY SURVEY');
   const zoning  = section(container, 'SITE & ZONING', true);
   const sun     = section(container, 'SUN', true);
@@ -54,15 +54,15 @@ export function initPanel(container) {
   metric(zoning, 'Site area', `${SITE.width * SITE.depth} m²`);
   metric(zoning, 'Latitude', `${SITE.latitude}° N`);
   metric(zoning, 'Setbacks N/S/E/W', `${s.north}/${s.south}/${s.east}/${s.west} m`);
-  metric(zoning, 'Max height', `${architectAgent.knowledge.maxHeight} m`);
-  metric(zoning, 'Max coverage', `${architectAgent.knowledge.maxCoveragePercent}%`);
+  metric(zoning, 'Max height', `${sitePlannerAgent.knowledge.maxHeight} m`);
+  metric(zoning, 'Max coverage', `${sitePlannerAgent.knowledge.maxCoveragePercent}%`);
   metric(zoning, 'Park', `${PARK.width} × ${PARK.depth} m, north`);
   metric(zoning, 'Context blocks', String(CONTEXT.length));
 
   // ── Everything below is rebuilt whenever the design changes ────────────────
   const massingBody = massing.body;
   const shadowBody = shadow.body;
-  const layoutBody = layout.body;
+  const envelopeBody = envelope.body;
   const surveyBody = survey.body;
 
   // ── Volume tabs ────────────────────────────────────────────────────────────
@@ -78,7 +78,8 @@ export function initPanel(container) {
   const planRow = el('div', 'button-row pick');
   params.body.appendChild(planRow);
   const planButtons = PLAN_SHAPES.map(shape => {
-    const b = el('button', 'btn btn-small', shape.label);
+    const b = el('button', 'btn btn-small', shape.short);
+    b.title = shape.label;
     b.onclick = () => setForm(state.selectedId, { plan: shape.id });
     planRow.appendChild(b);
     return { b, id: shape.id };
@@ -89,7 +90,8 @@ export function initPanel(container) {
   const sectionRow = el('div', 'button-row pick');
   params.body.appendChild(sectionRow);
   const sectionButtons = SECTION_TYPES.map(type => {
-    const b = el('button', 'btn btn-small', type.label);
+    const b = el('button', 'btn btn-small', type.short);
+    b.title = type.label;
     b.onclick = () => setForm(state.selectedId, { section: type.id });
     sectionRow.appendChild(b);
     return { b, id: type.id };
@@ -210,12 +212,12 @@ export function initPanel(container) {
 
     // Run the same tools the agents run, so the panel and the argument agree.
     const shadowResult = shadowAnalysis(s2, environmentalAgent.knowledge.testTimes);
-    const layoutResult = layoutCheck(s2, architectAgent.knowledge);
+    const envelopeResult = envelopeCheck(s2, sitePlannerAgent.knowledge);
     const surveyResult = surveyScore(s2, shadowResult, communityAgent.knowledge);
 
-    renderMassing(massingBody, s2, volume, layoutResult);
+    renderMassing(massingBody, s2, volume, envelopeResult);
     renderShadow(shadowBody, shadowResult);
-    renderLayout(layoutBody, layoutResult);
+    renderEnvelope(envelopeBody, envelopeResult);
     renderSurvey(surveyBody, surveyResult);
   });
 }
@@ -265,7 +267,7 @@ function renderShadow(body, result) {
   metric(body, 'Added', `${result.averageAddedByDesignPercent}%`);
 }
 
-function renderLayout(body, result) {
+function renderEnvelope(body, result) {
   body.replaceChildren();
   metric(body, 'Rule issues', String(result.violationCount),
     result.violationCount ? 'warn' : 'good');

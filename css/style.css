@@ -21,7 +21,7 @@
   --pixel: 'Press Start 2P', monospace;
 
   /* ── Agent colours, drawn from the V2 set ── */
-  --architect:     #6eabff;
+  --planner:       #6eabff;
   --community:     #ff8aa5;
   --environmental: #ffbe6a;
   --designer:      #9df0cf;
@@ -98,7 +98,7 @@ body { display: flex; flex-direction: column; }
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 186px 1fr 1fr 250px 264px;
+  grid-template-columns: 224px 1fr 1fr 250px 264px;
 
   /* Three of the five columns are fixed, so on a narrow laptop the two flexible
      ones would be crushed to nothing. Scroll sideways instead: a squeezed
@@ -295,9 +295,18 @@ body { overflow-x: auto; }
 
 .button-row { display: flex; flex-wrap: wrap; gap: 4px; }
 
-/* Four choices in a 186px column will not fit on one line. Two per row keeps
-   every label readable instead of clipping all of them equally. */
-.button-row.pick .btn { flex: 1 1 44%; }
+/* Four choices on one line. Equal widths rather than content widths, so the
+   row reads as one control and the eye can run along it; the full name is on
+   the tooltip and in every readout, so nothing is lost by shortening here. */
+.button-row.pick { flex-wrap: nowrap; }
+.button-row.pick .btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 4px 2px;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .btn {
   flex: 1;

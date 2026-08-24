@@ -143,7 +143,7 @@ export const environmentalAgent = {
 
     const added = worst.addedByDesignPercent;
     const ally = others.find(o => o.wantsChange && o.parameter === 'floors');
-    const architect = others.find(o => o.id === 'architect');
+    const planner = others.find(o => o.id === 'planner');
 
     // Under threshold: back whoever is arguing for something else.
     if (added <= kb.acceptableShadowPercent) {
@@ -159,7 +159,7 @@ export const environmentalAgent = {
            + `independent measurements point the same way, that is worth something.`;
     }
 
-    if (architect) {
+    if (planner) {
       return `I hear the floor-area argument. But ${added}% of the park is shaded by `
            + `this project alone, past my ${kb.acceptableShadowPercent}% limit, and `
            + `height is the only parameter that moves it. Rotation and setback will `

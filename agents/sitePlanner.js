@@ -1,21 +1,21 @@
-// agents/architect.js — cares about whether the layout works as a plan.
+// agents/sitePlanner.js — cares about whether the layout works as a plan.
 //
 // Shape: ROLE, KNOWLEDGE BASE, GOAL, TOOL. See agents/_template.js.
 //
 // Note this is the ARCHITECT AGENT, not the human designer. The human still
 // makes every decision; this agent only argues for a workable parcel layout.
 
-import { layoutCheck } from '../tools/layoutCheck.js';
+import { envelopeCheck } from '../tools/envelopeCheck.js';
 import { SITE } from '../core/site.js';
 
-export const architectAgent = {
-  id: 'architect',
-  name: 'Architect',
+export const sitePlannerAgent = {
+  id: 'planner',
+  name: 'Site Planner',
   color: '#6eabff',
-  avatar: 'assets/agents/architect.png',
+  avatar: 'assets/agents/siteplanner.png',
 
   // ── ROLE ───────────────────────────────────────────────────────────────────
-  role: 'You are an architect reviewing whether a massing layout works on its '
+  role: 'You are a site planner checking whether a massing sits inside the '
       + 'parcel: setbacks, spacing between volumes, and how much of the site is '
       + 'covered.',
 
@@ -40,10 +40,10 @@ export const architectAgent = {
 
   // ── TOOL ───────────────────────────────────────────────────────────────────
   tool: {
-    name: 'layoutCheck',
+    name: 'envelopeCheck',
 
     run(state) {
-      return layoutCheck(state, architectAgent.knowledge);
+      return envelopeCheck(state, sitePlannerAgent.knowledge);
     },
 
     summarise(result) {
@@ -114,7 +114,7 @@ export const architectAgent = {
     const tooClose = result.pairs.filter(p => p.overlap || p.tooClose);
 
     if (topic === 'evidence') {
-      return `layoutCheck, run on the current massing. ${result.volumes.length} volume(s), `
+      return `envelopeCheck, run on the current massing. ${result.volumes.length} volume(s), `
            + `${result.siteCoveragePercent}% site coverage, ${result.totalGFA} m² of floor area, `
            + `${result.violationCount} rule issue(s). `
            + (issues.length ? `Specifically: ${issues.join('; ')}.`
@@ -122,11 +122,11 @@ export const architectAgent = {
     }
 
     if (topic === 'threshold') {
-      const s = architectAgent.knowledge.setbacks;
+      const s = sitePlannerAgent.knowledge.setbacks;
       return `Four rules, all from my knowledge base: setbacks of ${s.north} m north, `
            + `${s.south} m south, ${s.east} m east, ${s.west} m west; at least `
-           + `${architectAgent.knowledge.minSpacing} m between volumes; nothing over `
-           + `${architectAgent.knowledge.maxHeight} m; coverage under `
+           + `${sitePlannerAgent.knowledge.minSpacing} m between volumes; nothing over `
+           + `${sitePlannerAgent.knowledge.maxHeight} m; coverage under `
            + `${result.maxCoveragePercent}%. They are teaching values for this exercise, `
            + `not a real bylaw.`;
     }
@@ -184,7 +184,7 @@ export const architectAgent = {
 
   // ── Demo mode ──────────────────────────────────────────────────────────────
   demo(result, state) {
-    const kb = architectAgent.knowledge;
+    const kb = sitePlannerAgent.knowledge;
 
     // Worst problem first: overlaps, then setbacks, then coverage.
     const overlapping = result.pairs.find(p => p.overlap);

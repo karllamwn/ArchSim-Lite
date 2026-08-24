@@ -1,8 +1,9 @@
-// tools/layoutCheck.js — does the layout obey the rules of the parcel?
+// tools/envelopeCheck.js — does the massing sit inside the buildable envelope?
 //
-// Setbacks, overlaps, spacing between volumes, site coverage. All measured,
-// none of it judged: the function reports distances and flags, and the
-// ARCHITECT agent decides what to argue about.
+// Setbacks, overlaps, spacing between volumes, height, site coverage. Not the
+// internal layout: nothing here knows or cares how the floor plan is arranged.
+// It measures where a volume is allowed to be and reports the distances; the
+// SITE PLANNER agent decides what is worth arguing about.
 
 import { SITE } from '../core/site.js';
 import {
@@ -18,7 +19,7 @@ import { baseSlab, planArea, volumeFloorArea } from '../core/form.js';
  *   totalGFA: number, violationCount: number, units: object
  * }}
  */
-export function layoutCheck(state, rules) {
+export function envelopeCheck(state, rules) {
   // Setbacks and spacing are measured against the slab that touches the
   // ground, which for a podium or a stepped tower is the widest one.
   const boxes = state.volumes.map(v => {

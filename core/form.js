@@ -186,18 +186,21 @@ export function volumeFloorArea(volume) {
 
 // ── Menus, shared by the panel and the agents ────────────────────────────────
 
+// `label` is the real name, used in readouts, proposals and the decision log.
+// `short` is what fits on a button in a narrow column — the two exist so the
+// interface can be terse without the record of a decision being terse.
 export const PLAN_SHAPES = [
-  { id: 'rect',      label: 'Rectangle' },
-  { id: 'ellipse',   label: 'Ellipse' },
-  { id: 'lshape',    label: 'L-shape' },
-  { id: 'courtyard', label: 'Courtyard' }
+  { id: 'rect',      label: 'Rectangle',      short: 'Rect' },
+  { id: 'ellipse',   label: 'Ellipse',        short: 'Oval' },
+  { id: 'lshape',    label: 'L-shape',        short: 'L' },
+  { id: 'courtyard', label: 'Courtyard',      short: 'Court' }
 ];
 
 export const SECTION_TYPES = [
-  { id: 'straight', label: 'Straight' },
-  { id: 'tapered',  label: 'Tapered' },
-  { id: 'podium',   label: 'Podium + tower' },
-  { id: 'stepped',  label: 'Stepped' }
+  { id: 'straight', label: 'Straight',        short: 'Plain' },
+  { id: 'tapered',  label: 'Tapered',         short: 'Taper' },
+  { id: 'podium',   label: 'Podium + tower',  short: 'Podium' },
+  { id: 'stepped',  label: 'Stepped',         short: 'Step' }
 ];
 
 /** Which extra sliders are worth showing for a given section type. */
