@@ -13,6 +13,12 @@
 
 import { AGENTS } from '../agents/index.js';
 
+// The artwork's own proportions. Figure positions are percentages of THIS, so
+// the room on screen has to keep this shape or every consultant drifts off
+// their desk.
+const ROOM_ASPECT = 900 / 1342;
+const ROOM_PADDING = 6;
+
 // Where each consultant stands, as percentages of the backdrop. Six desks in
 // three rows of two, read left to right, top to bottom. Three are taken by the
 // built-in agents and three are waiting for the ones students write.
@@ -89,6 +95,31 @@ export function initOffice(container) {
     room.appendChild(figure);
     figures.set(agent.id, { figure, bubble });
   });
+
+  // Keep the room fitted whenever the column changes shape. Safe to observe:
+  // the room is absolutely positioned, so resizing it cannot resize the pane.
+  const fit = () => fitRoom(container, room);
+  new ResizeObserver(fit).observe(container);
+  fit();
+}
+
+/** The largest box of the artwork's proportions that fits, centred in the pane. */
+function fitRoom(pane, room) {
+  const availW = pane.clientWidth - ROOM_PADDING * 2;
+  const availH = pane.clientHeight - ROOM_PADDING * 2;
+  if (availW <= 0 || availH <= 0) return;
+
+  let width = availW;
+  let height = width / ROOM_ASPECT;
+  if (height > availH) {
+    height = availH;
+    width = height * ROOM_ASPECT;
+  }
+
+  room.style.width = `${Math.round(width)}px`;
+  room.style.height = `${Math.round(height)}px`;
+  room.style.left = `${Math.round((pane.clientWidth - width) / 2)}px`;
+  room.style.top = `${Math.round((pane.clientHeight - height) / 2)}px`;
 }
 
 /**

@@ -143,6 +143,10 @@ body { overflow-x: auto; }
    sentence wraps to four lines and sits on top of the view. */
 .stage-north { color: var(--accent2); }
 
+/* Reviewing a past round: say so plainly, because the sliders on the left still
+   describe the live design and the two no longer agree. */
+.stage-label.reviewing { color: var(--accent2); }
+
 .viewport { flex: 1; min-height: 0; }
 .viewport canvas { display: block; width: 100%; height: 100%; }
 
@@ -176,8 +180,14 @@ body { overflow-x: auto; }
   padding: 3px 0;
   color: var(--faint);
 }
+.frame { cursor: pointer; transition: border-color 120ms ease; }
+.frame:hover { border-color: var(--border-hi); }
 .frame-latest { border-color: var(--accent); }
 .frame-latest .frame-label { color: var(--accent); }
+
+/* The frame currently being looked at, which is not necessarily the newest. */
+.frame-reviewing { border-color: var(--accent2); }
+.frame-reviewing .frame-label { color: var(--accent2); }
 
 .filmstrip-empty {
   align-self: center;
@@ -553,12 +563,14 @@ body { overflow-x: auto; }
 
 .col-office { position: relative; overflow: hidden; border-left: 1px solid var(--border); }
 
+/* Sized and centred by ui/office.js, not by CSS. `cover` cropped the image,
+   which silently broke every figure position: a desk at 27.8% of the picture
+   is not at 27.8% of a pane that is showing only the middle of it. The room
+   keeps the artwork's own proportions so the percentages mean what they say. */
 .office-room {
   position: absolute;
-  inset: 0;
   background-image: url('../assets/office/lab.png');
-  background-size: cover;
-  background-position: center top;
+  background-size: 100% 100%;
   image-rendering: pixelated;
 }
 

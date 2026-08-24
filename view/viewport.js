@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import { state, subscribe, volumeHeight } from '../core/state.js';
-import { SITE, PARK, CONTEXT } from '../core/site.js';
+import { SITE, PARK, CONTEXT, buildableBounds } from '../core/site.js';
 import { sunVector, sunPosition } from './sun.js';
 import { volumeToSlabs } from '../core/form.js';
 
@@ -34,7 +34,10 @@ const COLOR = {
   volume:      0xd8d8d8, // the massing, measured off V2's tower
   selected:    0x45d1b3, // --accent, the one saturated thing in the scene
   volumeEdge:  0x6d7078,
-  volumeSelected: 0xf2f2f2  // a shade brighter, not a different hue
+  volumeSelected: 0xf2f2f2, // a shade brighter, not a different hue
+  boundary:    0xe8483c, // the property line: the one red in the scene
+  setback:     0x8a5a52, // the buildable edge inside it, deliberately quieter
+  setbackLabel: 0xb08076 // the same line's name, lifted enough to read
 };
 
 // Half the height of the visible world, in metres. Big enough to hold the site,
@@ -45,6 +48,11 @@ const VIEW_EXTENT = 78;
 let scene, camera, renderer, controls, sunLight;
 let volumeGroup;   // every design volume lives in here, cleared and rebuilt
 let host;          // the div the canvas lives in, used for sizing
+
+// When a frame in the filmstrip is being reviewed, the viewport draws this
+// instead of the live design. Editing anything clears it: you should always be
+// looking at the thing you are changing.
+let reviewing = null;   // { round, volumes, sun } or null
 
 /**
  * Create the scene and start rendering.
@@ -84,8 +92,12 @@ export function initViewport(container) {
   volumeGroup = new THREE.Group();
   scene.add(volumeGroup);
 
-  // Redraw whenever the design changes.
-  subscribe(rebuild);
+  // Redraw whenever the design changes. A live edit also ends any review, so
+  // the view can never show one design while the sliders describe another.
+  subscribe(s => {
+    if (reviewing) endReview();
+    rebuild(s);
+  });
 
   initFilmstrip();
 
@@ -179,6 +191,29 @@ function buildContext() {
   // The buildable parcel.
   scene.add(flatRect(SITE.width, SITE.depth, 0, 0, COLOR.site, 0.02));
 
+  // The property line, dashed and red. The only red in the scene, because it is
+  // the one edge the design is not allowed to cross.
+  const half = { w: SITE.width / 2, d: SITE.depth / 2 };
+  scene.add(dashedLoop([
+    [-half.w, -half.d], [half.w, -half.d], [half.w, half.d], [-half.w, half.d]
+  ], COLOR.boundary, 0.08, 2.2, 1.6));
+
+  // The setback line inside it: where a building may actually stand. Dimmer,
+  // finer dashes, so the hierarchy reads at a glance — hard edge, soft edge.
+  // This is the line the architect agent is measuring against when it says a
+  // volume is short on the south, so it is worth being able to see.
+  const b = buildableBounds();
+  scene.add(dashedLoop([
+    [b.minX, b.minZ], [b.maxX, b.minZ], [b.maxX, b.maxZ], [b.minX, b.maxZ]
+  ], COLOR.setback, 0.07, 1.1, 1.1));
+
+  // Name both lines. An unlabelled dashed rectangle is just a dashed rectangle,
+  // and these two are the thing the architect agent measures against.
+  scene.add(placeLabel('Site Boundary', COLOR.boundary, half.w - 9, half.d + 4.5));
+  // North-west corner: the default massing sits in the southern half, so this
+  // is the part of the parcel least likely to be built over.
+  scene.add(placeLabel('Setback line', COLOR.setbackLabel, b.minX + 10, b.minZ + 3));
+
   // The park to the north — the thing the shadow argument is about. It carries
   // a little emissive green so it stays identifiable even when it is entirely
   // in shadow, which is exactly the moment you most need to see where it is.
@@ -206,6 +241,65 @@ function buildContext() {
   }
 }
 
+/**
+ * A short text label standing on the ground plane.
+ *
+ * Drawn to a canvas and used as a sprite, so there is no font file to load and
+ * no dependency beyond Three.js itself. Sprites always face the camera, which
+ * is what you want for a plan annotation: it stays readable however the view
+ * is orbited.
+ */
+function placeLabel(text, color, x, z, worldHeight = 3.4) {
+  const fontSize = 48;
+  const pad = 10;
+  const canvas = document.createElement('canvas');
+  let ctx = canvas.getContext('2d');
+
+  ctx.font = `${fontSize}px "Courier New", monospace`;
+  canvas.width = Math.ceil(ctx.measureText(text).width) + pad * 2;
+  canvas.height = fontSize + pad * 2;
+
+  // Resizing the canvas resets the context, so the font has to be set again.
+  ctx = canvas.getContext('2d');
+  ctx.font = `${fontSize}px "Courier New", monospace`;
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#' + color.toString(16).padStart(6, '0');
+  ctx.fillText(text, pad, canvas.height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthTest: false      // an annotation should not be hidden by a building
+  }));
+  sprite.position.set(x, 1.2, z);
+  sprite.scale.set(worldHeight * (canvas.width / canvas.height), worldHeight, 1);
+  sprite.renderOrder = 10;
+  return sprite;
+}
+
+/**
+ * A closed dashed loop lying flat on the ground.
+ *
+ * Dashes in Three.js are computed from distance along the line, so
+ * computeLineDistances() has to run or the material draws a solid line. The
+ * loop is closed by repeating the first point rather than using LineLoop,
+ * which does not carry the distances round the closing segment.
+ */
+function dashedLoop(points, color, y, dashSize, gapSize) {
+  const closed = [...points, points[0]];
+  const geometry = new THREE.BufferGeometry().setFromPoints(
+    closed.map(([x, z]) => new THREE.Vector3(x, y, z))
+  );
+  const line = new THREE.Line(geometry, new THREE.LineDashedMaterial({
+    color, dashSize, gapSize
+  }));
+  line.computeLineDistances();
+  return line;
+}
+
 /** A thin coloured rectangle lying on the ground. Used for site and park. */
 function flatRect(width, depth, x, z, color, y, emissive = 0x000000) {
   const mesh = new THREE.Mesh(
@@ -222,8 +316,9 @@ function flatRect(width, depth, x, z, color, y, emissive = 0x000000) {
 
 /** Called on every state change. Rebuilds the massing and moves the sun. */
 function rebuild(s) {
-  updateSun(s);
-  updateVolumes(s);
+  const shown = reviewing ?? s;
+  updateSun(shown);
+  updateVolumes(shown);
 }
 
 function updateSun(s) {
@@ -247,7 +342,7 @@ function updateVolumes(s) {
   volumeGroup.clear();
 
   for (const volume of s.volumes) {
-    const isSelected = volume.id === s.selectedId;
+    const isSelected = !reviewing && volume.id === s.selectedId;
     // The massing stays near-white whether or not it is selected, the way the
     // V2 tower does. Selection is shown on the outline instead: recolouring the
     // whole solid meant the white building was almost never on screen.
@@ -407,7 +502,16 @@ export function captureFrame(round) {
 
   const frame = document.createElement('div');
   frame.className = 'frame frame-latest';
-  frame.title = `The design as it stood at the end of round ${round}`;
+  frame.title = `Round ${round} — click to look at it again`;
+
+  // The design exactly as it stood when this frame was taken. Deep-copied, so
+  // later edits cannot reach back and change history.
+  const snapshot = {
+    round,
+    volumes: state.volumes.map(v => ({ ...v })),
+    sun: { ...state.sun }
+  };
+  frame.onclick = () => beginReview(snapshot, frame);
 
   const img = document.createElement('img');
   img.src = url;
@@ -423,12 +527,44 @@ export function captureFrame(round) {
   strip.prepend(frame);
 }
 
+/** Show a past round in the viewport. Nothing is written back to the design. */
+function beginReview(snapshot, frame) {
+  const strip = document.getElementById('filmstrip');
+
+  // Clicking the frame you are already reviewing takes you back to the present.
+  if (reviewing && reviewing.round === snapshot.round) {
+    endReview();
+    rebuild(state);
+    return;
+  }
+
+  reviewing = snapshot;
+  for (const f of strip.querySelectorAll('.frame')) f.classList.remove('frame-reviewing');
+  frame.classList.add('frame-reviewing');
+  setStageLabel(`ROUND ${snapshot.round} · REVIEW`, true);
+  rebuild(state);
+}
+
+/** Back to the live design. */
+function endReview() {
+  reviewing = null;
+  const strip = document.getElementById('filmstrip');
+  for (const f of strip?.querySelectorAll('.frame') ?? []) f.classList.remove('frame-reviewing');
+  setStageLabel('SITE VIEW', false);
+}
+
+function setStageLabel(text, isReview) {
+  const el = document.getElementById('stageView');
+  if (el) el.textContent = text;
+  el?.closest('.stage-label')?.classList.toggle('reviewing', isReview);
+}
+
 /** The strip before any round has run. Without this it is a blank bar. */
 export function initFilmstrip() {
   const strip = document.getElementById('filmstrip');
   if (!strip || strip.children.length) return;
   const note = document.createElement('div');
   note.className = 'filmstrip-empty';
-  note.textContent = 'Rounds appear here as they finish, newest first.';
+  note.textContent = 'Rounds appear here as they finish. Click one to look at it again.';
   strip.appendChild(note);
 }
