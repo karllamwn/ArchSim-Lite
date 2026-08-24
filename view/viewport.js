@@ -19,19 +19,27 @@ import { volumeToSlabs } from '../core/form.js';
 // the values step clearly rather than sitting in one dark band: ground darkest,
 // then context, then the parcel, with the park the only green and the design the
 // only bright thing on the board.
+// Sampled from the V2 workspace screenshot rather than invented. The important
+// finding: the model view there is NEUTRAL. Teal belongs to the interface
+// chrome; inside the viewport the ground is a dark warm grey, the context is
+// cool blue-grey line work, and the building itself is near-white. Keeping the
+// scene neutral is what lets the one accent colour mean "selected".
 const COLOR = {
-  sky:         0x0d1716, // --bg
-  ground:      0x161f1e,
-  site:        0x2a4540, // the buildable parcel, lifted off the ground plane
-  park:        0x4f9b66, // the one green: this is what the argument protects
-  neighbour:   0x36504c, // existing context, present but quiet
-  contextEdge: 0x4c6a65,
-  volume:      0xe4efeb, // the design reads pale against everything else
-  selected:    0x45d1b3, // --accent
-  grid:        0x2b4a45,
-  gridSub:     0x1e332f,
-  north:       0xff7f50  // --accent2
+  sky:         0x1d1c21, // 44% of the pixels in V2's viewport are this
+  ground:      0x1d1c21, // ground and background read as one surface there
+  site:        0x2b2b33, // the parcel, a step up from the ground
+  park:        0x405543, // muted planting green: identifiable, not cartoon
+  context:     0x2e333c, // the existing blocks: filled, but well below the design
+  contextEdge: 0x454f60, // their corners, a step up so the massing stays readable
+  volume:      0xd8d8d8, // the massing, measured off V2's tower
+  selected:    0x45d1b3, // --accent, the one saturated thing in the scene
+  volumeEdge:  0x6d7078,
+  volumeSelected: 0xf2f2f2  // a shade brighter, not a different hue
 };
+
+// Half the height of the visible world, in metres. Big enough to hold the site,
+// the park to the north and the surrounding blocks in one frame.
+const VIEW_EXTENT = 78;
 
 // Module-level handles, set up once in initViewport().
 let scene, camera, renderer, controls, sunLight;
@@ -52,8 +60,12 @@ export function initViewport(container) {
   // site, the park and the surrounding blocks in one frame. It is aimed between
   // the site and the park rather than at the site alone, because the thing worth
   // looking at is the shadow running from one into the other.
-  camera = new THREE.PerspectiveCamera(45, 1, 0.5, 2000);
-  camera.position.set(115, 130, 150);
+  // Orthographic, not perspective. The V2 workspace draws the site as an
+  // axonometric: parallel lines stay parallel, so two towers the same height
+  // read the same height wherever they sit on the plot. For judging a massing
+  // against a boundary that matters more than depth cues do.
+  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 2000);
+  camera.position.set(150, 135, 165);
 
   renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
   renderer.shadowMap.enabled = true;
@@ -68,13 +80,14 @@ export function initViewport(container) {
   buildLights();
   buildGround();
   buildContext();
-  buildNorthArrow();
 
   volumeGroup = new THREE.Group();
   scene.add(volumeGroup);
 
   // Redraw whenever the design changes.
   subscribe(rebuild);
+
+  initFilmstrip();
 
   renderer.setAnimationLoop(() => {
     matchCanvasToContainer();
@@ -105,7 +118,14 @@ function matchCanvasToContainer() {
 
   renderer.setPixelRatio(pixelRatio);
   renderer.setSize(width, height, false);   // false: CSS controls the display size
-  camera.aspect = width / height;
+
+  // An orthographic camera has no aspect property: its frustum is set in world
+  // metres, so the visible extent has to be rebuilt from the pane's shape.
+  const aspect = width / height;
+  camera.left   = -VIEW_EXTENT * aspect;
+  camera.right  =  VIEW_EXTENT * aspect;
+  camera.top    =  VIEW_EXTENT;
+  camera.bottom = -VIEW_EXTENT;
   camera.updateProjectionMatrix();
 }
 
@@ -114,10 +134,14 @@ function matchCanvasToContainer() {
 function buildLights() {
   // Soft fill so faces away from the sun are not solid black. Tinted to the
   // dark teal theme rather than neutral white.
-  scene.add(new THREE.HemisphereLight(0xbfe6dc, 0x0d1716, 1.0));
+    // Lambert shading multiplies the material colour by the light, so a dim
+  // ambient makes every surface render darker than the value written above.
+  // This is set so an unlit face lands close to its stated colour, which is the
+  // only way the sampled palette means anything.
+  scene.add(new THREE.HemisphereLight(0xdfe4ec, 0x2a2933, 2.6));
 
   // The sun. Position is set from the date/time in updateSun() below.
-  sunLight = new THREE.DirectionalLight(0xfff3e0, 2.2);
+  sunLight = new THREE.DirectionalLight(0xfff8f0, 1.6);
   sunLight.castShadow = true;
 
   // The shadow camera is an orthographic box: it has to cover everything that
@@ -147,11 +171,8 @@ function buildGround() {
   ground.receiveShadow = true;
   scene.add(ground);
 
-  // One-metre grid, sized to reach past the surrounding blocks so the ground
-  // does not fall away into a void behind them.
-  const grid = new THREE.GridHelper(180, 180, COLOR.grid, COLOR.gridSub);
-  grid.position.y = 0.01;
-  scene.add(grid);
+  // No grid. V2's viewport has none, and on a dark ground it competes with the
+  // shadow, which is the one thing on screen worth reading closely.
 }
 
 function buildContext() {
@@ -161,51 +182,28 @@ function buildContext() {
   // The park to the north — the thing the shadow argument is about. It carries
   // a little emissive green so it stays identifiable even when it is entirely
   // in shadow, which is exactly the moment you most need to see where it is.
-  scene.add(flatRect(PARK.width, PARK.depth, PARK.x, PARK.z, COLOR.park, 0.03, 0x14301f));
+  scene.add(flatRect(PARK.width, PARK.depth, PARK.x, PARK.z, COLOR.park, 0.03, 0x18261a));
 
-  // The surrounding city, drawn as line work rather than solid blocks so the
-  // design being argued about is the only thing with mass on screen. They still
-  // cast shadows: an invisible box in the shadow map is still a box.
+  // The surrounding city: solid, but dark. Sampling V2's viewport, the context
+  // blues cover about an eighth of the frame, which only happens if the blocks
+  // have faces — they are not wireframes. Filled and quiet, with a lighter edge
+  // so the corners stay legible against each other.
   for (const building of CONTEXT) {
     const box = new THREE.BoxGeometry(building.width, building.height, building.depth);
 
-    const shell = new THREE.Mesh(box, new THREE.MeshLambertMaterial({
-      color: COLOR.neighbour, transparent: true, opacity: 0.35
-    }));
-    shell.position.set(building.x, building.height / 2, building.z);
-    shell.castShadow = true;
-    shell.receiveShadow = true;
-    scene.add(shell);
+    const mesh = new THREE.Mesh(box, new THREE.MeshLambertMaterial({ color: COLOR.context }));
+    mesh.position.set(building.x, building.height / 2, building.z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
 
     const edges = new THREE.LineSegments(
       new THREE.EdgesGeometry(box),
       new THREE.LineBasicMaterial({ color: COLOR.contextEdge })
     );
-    edges.position.copy(shell.position);
+    edges.position.copy(mesh.position);
     scene.add(edges);
   }
-}
-
-function buildNorthArrow() {
-  const arrow = new THREE.Group();
-
-  const shaft = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.4, 0.4, 8, 12),
-    new THREE.MeshBasicMaterial({ color: COLOR.north })
-  );
-  shaft.rotation.x = Math.PI / 2;   // lie it flat, pointing along Z
-  arrow.add(shaft);
-
-  const head = new THREE.Mesh(
-    new THREE.ConeGeometry(1.4, 3.5, 16),
-    new THREE.MeshBasicMaterial({ color: COLOR.north })
-  );
-  head.rotation.x = -Math.PI / 2;   // point toward -Z, which is north
-  head.position.z = -5.5;
-  arrow.add(head);
-
-  arrow.position.set(-42, 0.2, -20);
-  scene.add(arrow);
 }
 
 /** A thin coloured rectangle lying on the ground. Used for site and park. */
@@ -240,7 +238,7 @@ function updateSun(s) {
   sunLight.target.updateMatrixWorld();
 
   // Below the horizon: no direct light, no shadows.
-  sunLight.intensity = isUp ? 2.2 : 0;
+  sunLight.intensity = isUp ? 1.6 : 0;
 }
 
 function updateVolumes(s) {
@@ -250,11 +248,15 @@ function updateVolumes(s) {
 
   for (const volume of s.volumes) {
     const isSelected = volume.id === s.selectedId;
+    // The massing stays near-white whether or not it is selected, the way the
+    // V2 tower does. Selection is shown on the outline instead: recolouring the
+    // whole solid meant the white building was almost never on screen.
     const material = new THREE.MeshLambertMaterial({
-      color: isSelected ? COLOR.selected : COLOR.volume
+      color: isSelected ? COLOR.volumeSelected : COLOR.volume
     });
     const edgeMaterial = new THREE.LineBasicMaterial({
-      color: isSelected ? 0x0d1716 : 0x6f8a84
+      color: isSelected ? COLOR.selected : COLOR.volumeEdge,
+      linewidth: 1
     });
 
     // One mesh per band. core/form.js decides what the bands are, so a podium,
@@ -273,8 +275,47 @@ function updateVolumes(s) {
       edges.position.copy(mesh.position);
       edges.rotation.copy(mesh.rotation);
       volumeGroup.add(edges);
+
+      // A line at every floor level. Without them a massing is an abstract
+      // block; with them you can count the storeys the agents are arguing
+      // about, which is most of what makes it read as a building.
+      for (const floorLine of floorPlates(slab, volume.floorHeight, edgeMaterial)) {
+        floorLine.position.set(slab.x, slab.y0 + floorLine.userData.y, slab.z);
+        floorLine.rotation.y = -slab.rotation * Math.PI / 180;
+        volumeGroup.add(floorLine);
+      }
     }
   }
+}
+
+/**
+ * One horizontal outline per floor within a slab, so the storeys are countable.
+ * Reuses the same plan outline the solid is extruded from, which is why an
+ * ellipse or a courtyard gets correct floor lines for free.
+ */
+function floorPlates(slab, floorHeight, material) {
+  const lines = [];
+  const height = slab.y1 - slab.y0;
+
+  for (let y = floorHeight; y < height - 0.01; y += floorHeight) {
+    for (const outline of planOutlines(slab)) {
+      const geometry = new THREE.BufferGeometry().setFromPoints(
+        outline.map(p => new THREE.Vector3(p.x, 0, p.y))
+      );
+      const loop = new THREE.LineLoop(geometry, material);
+      loop.userData.y = y;
+      lines.push(loop);
+    }
+  }
+  return lines;
+}
+
+/** The plan outline(s) of a slab as point lists: the edge, plus any void. */
+function planOutlines(slab) {
+  const shape = planShape(slab);
+  const outlines = [shape.getPoints(slab.plan === 'ellipse' ? 48 : 12)];
+  for (const hole of shape.holes) outlines.push(hole.getPoints(12));
+  return outlines;
 }
 
 /**
@@ -284,6 +325,17 @@ function updateVolumes(s) {
  */
 function slabGeometry(slab) {
   const height = slab.y1 - slab.y0;
+  const geometry = new THREE.ExtrudeGeometry(planShape(slab), {
+    depth: height, bevelEnabled: false
+  });
+  // Shapes are drawn in XY and extruded along +Z; stand it up so the extrusion
+  // runs vertically and the plan lies flat.
+  geometry.rotateX(-Math.PI / 2);
+  return geometry;
+}
+
+/** The plan of a slab as a THREE.Shape. One place plan shape becomes geometry. */
+function planShape(slab) {
   const hw = slab.w / 2;
   const hd = slab.d / 2;
 
@@ -324,11 +376,7 @@ function slabGeometry(slab) {
     }
   }
 
-  const geometry = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false });
-  // Shapes are drawn in XY and extruded along +Z; stand it up so the extrusion
-  // runs vertically and the plan lies flat.
-  geometry.rotateX(-Math.PI / 2);
-  return geometry;
+  return shape;
 }
 
 
@@ -348,20 +396,39 @@ export function captureFrame(round) {
   const strip = document.getElementById('filmstrip');
   if (!strip) return;
   strip.querySelector('.filmstrip-empty')?.remove();
+
+  // Only the newest is "LATEST"; the ones behind it take their round number,
+  // which is how the V2 strip reads.
   for (const frame of strip.querySelectorAll('.frame-latest')) {
     frame.classList.remove('frame-latest');
+    const label = frame.querySelector('.frame-label');
+    if (label) label.textContent = label.dataset.round;
   }
 
   const frame = document.createElement('div');
   frame.className = 'frame frame-latest';
+  frame.title = `The design as it stood at the end of round ${round}`;
+
   const img = document.createElement('img');
   img.src = url;
   img.alt = `Round ${round}`;
   frame.appendChild(img);
+
   const label = document.createElement('div');
   label.className = 'frame-label';
-  label.textContent = `R${String(round).padStart(3, '0')}`;
+  label.dataset.round = `R${String(round).padStart(3, '0')}`;
+  label.textContent = 'LATEST';
   frame.appendChild(label);
 
   strip.prepend(frame);
+}
+
+/** The strip before any round has run. Without this it is a blank bar. */
+export function initFilmstrip() {
+  const strip = document.getElementById('filmstrip');
+  if (!strip || strip.children.length) return;
+  const note = document.createElement('div');
+  note.className = 'filmstrip-empty';
+  note.textContent = 'Rounds appear here as they finish, newest first.';
+  strip.appendChild(note);
 }
