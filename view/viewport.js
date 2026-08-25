@@ -34,6 +34,7 @@ const COLOR = {
   volume:      0xd8d8d8, // the massing, measured off V2's tower
   selected:    0x45d1b3, // --accent, the one saturated thing in the scene
   volumeEdge:  0x6d7078,
+  floorLine:   0x9aa0a6, // storey lines: legible on the white massing, quiet from afar
   volumeSelected: 0xf2f2f2, // a shade brighter, not a different hue
   boundary:    0xe8483c, // the property line: the one red in the scene
   setback:     0x8a5a52, // the buildable edge inside it, deliberately quieter
@@ -346,12 +347,31 @@ function updateVolumes(s) {
     // The massing stays near-white whether or not it is selected, the way the
     // V2 tower does. Selection is shown on the outline instead: recolouring the
     // whole solid meant the white building was almost never on screen.
+    // polygonOffset pushes the filled faces a hair further away in the depth
+    // buffer without moving them in space. The storey lines sit exactly ON
+    // those faces, so without it the two fight for the same depth and the rings
+    // on the FAR side of the building punch through the near wall. Near and far
+    // rings run opposite ways on screen, so the back of the building was being
+    // cross-hatched over the front — worst on an L, where the notch brings the
+    // two walls closest together. With the offset the near lines win and the
+    // solid hides the far ones.
     const material = new THREE.MeshLambertMaterial({
-      color: isSelected ? COLOR.volumeSelected : COLOR.volume
+      color: isSelected ? COLOR.volumeSelected : COLOR.volume,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1
     });
     const edgeMaterial = new THREE.LineBasicMaterial({
       color: isSelected ? COLOR.selected : COLOR.volumeEdge,
       linewidth: 1
+    });
+
+    // Storey lines are always faint grey, never the selection colour: in teal
+    // they shouted louder than the massing they are there to measure.
+    const floorMaterial = new THREE.LineBasicMaterial({
+      color: COLOR.floorLine,
+      transparent: true,
+      opacity: 0.55
     });
 
     // One mesh per band. core/form.js decides what the bands are, so a podium,
@@ -371,13 +391,41 @@ function updateVolumes(s) {
       edges.rotation.copy(mesh.rotation);
       volumeGroup.add(edges);
 
-      // No per-storey lines. They were drawn to make the massing countable, but
-      // on a concave plan the two inner walls of an L notch are seen almost
-      // edge-on, and eight rings of them pile into a cross-hatch that reads as a
-      // rendering fault. Storey count is on the slider and in the metrics panel;
-      // the model stays a clean massing study.
+      // A line at every floor level. Without them a massing is an abstract
+      // block; with them you can count the storeys the agents are arguing
+      // about, which is most of what makes it read as a building.
+      for (const floorLine of floorPlates(slab, volume.floorHeight, floorMaterial)) {
+        floorLine.position.set(slab.x, slab.y0 + floorLine.userData.y, slab.z);
+        floorLine.rotation.y = -slab.rotation * Math.PI / 180;
+        volumeGroup.add(floorLine);
+      }
     }
   }
+}
+
+/**
+ * One horizontal outline per floor within a slab, so the storeys are countable.
+ * Reuses the same plan outline the solid is extruded from, which is why an
+ * ellipse, a courtyard or an L gets correct floor lines for free.
+ */
+function floorPlates(slab, floorHeight, material) {
+  const lines = [];
+  const height = slab.y1 - slab.y0;
+
+  // The outline is the same for every floor of a band, so trace it once.
+  const outlines = planOutlines(slab);
+
+  for (let y = floorHeight; y < height - 0.01; y += floorHeight) {
+    for (const outline of outlines) {
+      const geometry = new THREE.BufferGeometry().setFromPoints(
+        outline.map(p => new THREE.Vector3(p.x, 0, p.y))
+      );
+      const loop = new THREE.LineLoop(geometry, material);
+      loop.userData.y = y;
+      lines.push(loop);
+    }
+  }
+  return lines;
 }
 
 // The outline comes from core/form.js, traced off the same signed distance
@@ -415,20 +463,34 @@ function planShape(slab) {
   if (loops.length === 0) return shape;   // degenerate footprint
 
   const outline = loops[0];
-  shape.moveTo(outline[0].x, outline[0].y);
-  for (const point of outline.slice(1)) shape.lineTo(point.x, point.y);
+  shape.moveTo(outline[0].x, shapeY(outline[0]));
+  for (const point of outline.slice(1)) shape.lineTo(point.x, shapeY(point));
   shape.closePath();
 
   // Anything else the trace found is enclosed: a courtyard, or a void a student
   // has written that does not reach the edge.
   for (const loop of loops.slice(1)) {
     const hole = new THREE.Path();
-    hole.moveTo(loop[0].x, loop[0].y);
-    for (const point of loop.slice(1)) hole.lineTo(point.x, point.y);
+    hole.moveTo(loop[0].x, shapeY(loop[0]));
+    for (const point of loop.slice(1)) hole.lineTo(point.x, shapeY(point));
     hole.closePath();
     shape.holes.push(hole);
   }
   return shape;
+}
+
+/**
+ * A traced point's local z, in the coordinate the Shape has to be written in.
+ *
+ * slabGeometry() stands the extrusion up with rotateX(-90°), and that maps the
+ * shape's y onto world MINUS z. Writing the traced z straight in therefore
+ * mirrored the solid north-for-south. On a rectangle that is invisible; on an L
+ * it put the notch on the wrong side, so the building on screen faced the
+ * opposite way from the one the shadow rays and the area readout were measuring
+ * — the exact disagreement the single distance field exists to prevent.
+ */
+function shapeY(point) {
+  return -point.y;
 }
 
 
