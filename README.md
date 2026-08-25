@@ -9,7 +9,9 @@ in an evening. Built for a workshop; no installation, no build step.
 
 ## Run it
 
-Open the published link, or serve the folder locally:
+**[karllamwn.github.io/ArchSim-Lite](https://karllamwn.github.io/ArchSim-Lite/)**
+
+Nothing to install. Or serve the folder locally:
 
 ```bash
 python -m http.server 3100
