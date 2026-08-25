@@ -44,7 +44,12 @@ export const environmentalAgent = {
     // argue for. The average moves smoothly with the massing, so it is the one
     // worth negotiating over. The worst case is still reported as evidence.
     acceptableShadowPercent: 20,   // no complaint below this
-    seriousShadowPercent: 45,      // argue hard above this
+    // The pair spans the range the design actually covers: the opening massing
+    // averages 50% added and a settled one around 8%, so 20 to 55 puts every
+    // real design somewhere on the slope. A narrower ceiling clamped the first
+    // round to zero, and a zero on the radar reads as a broken chart rather
+    // than as a building with a problem.
+    seriousShadowPercent: 55,      // argue hard above this
 
     // How far past the threshold this agent will let a design sit before it
     // asks for another change. A shadow study is a model, not a measurement:
@@ -58,7 +63,7 @@ export const environmentalAgent = {
   goal: 'Keep the shadow this project adds to the park below 20% of its area at '
       + 'average across the test times, allowing 5 percentage points of '
       + 'tolerance because a shadow study is a model, and treat anything above '
-      + '45% as serious. '
+      + '55% as serious. '
       + 'Judge the design on what it adds, not on shadow that would fall anyway.',
 
   canPropose: ['section', 'floors', 'z', 'd', 'rotation'],

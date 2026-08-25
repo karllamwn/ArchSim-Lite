@@ -621,6 +621,12 @@ function endReview() {
 function setStageLabel(text, isReview) {
   const el = document.getElementById('stageView');
   if (el) el.textContent = text;
+
+  // The first half says WHICH design you are looking at, so it cannot keep
+  // saying LATEST while the second half says you are reviewing round 1.
+  const when = document.getElementById('stageWhen');
+  if (when) when.textContent = isReview ? 'ARCHIVE' : 'LATEST';
+
   el?.closest('.stage-label')?.classList.toggle('reviewing', isReview);
 }
 

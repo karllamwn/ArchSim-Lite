@@ -158,12 +158,23 @@ export function showSurveillance() {
   panel.hidden = false;
   const round = currentRound();
   roundLabel.textContent = round ? `ROUND ${round}` : 'STANDBY';
-  document.getElementById('tabNegotiation')?.classList.remove('mode-tab-on');
-  document.getElementById('tabSurveillance')?.classList.add('mode-tab-on');
+  setMode('tabSurveillance');
 }
 
 export function hideSurveillance() {
   panel.hidden = true;
-  document.getElementById('tabSurveillance')?.classList.remove('mode-tab-on');
-  document.getElementById('tabNegotiation')?.classList.add('mode-tab-on');
+  setMode('tabNegotiation');
+}
+
+/**
+ * Light one mode tab and put the other out — in the class AND in the tab's
+ * pressed state, so which mode you are in is not carried by fill colour alone.
+ */
+function setMode(onId) {
+  for (const id of ['tabNegotiation', 'tabSurveillance']) {
+    const tab = document.getElementById(id);
+    if (!tab) continue;
+    tab.classList.toggle('mode-tab-on', id === onId);
+    tab.setAttribute('aria-pressed', String(id === onId));
+  }
 }

@@ -137,11 +137,17 @@ function download(filename, text) {
 // ── Radar ────────────────────────────────────────────────────────────────────
 
 function drawRadar(latest) {
-  const size = 190;
-  const cx = size / 2;
-  const cy = size / 2;
-  const radius = size / 2 - 38;
-  const svg = el('svg', { viewBox: `0 0 ${size} ${size}`, class: 'chart-svg' });
+  // Wider than it is tall, and the polygon is smaller than the box, because the
+  // axis labels are agent names and an agent's name is however long a student
+  // makes it. Sizing the box to the polygon and then trimming the names to fit
+  // is the wrong way round: it printed ENVIRONME, and clipped even that at the
+  // edge of the viewBox. The chart gives the labels the room they need instead.
+  const width = 230;
+  const height = 190;
+  const cx = width / 2;
+  const cy = height / 2;
+  const radius = 52;
+  const svg = el('svg', { viewBox: `0 0 ${width} ${height}`, class: 'chart-svg' });
 
   if (AGENTS.length < 3) {
     svg.appendChild(el('text', { x: cx, y: cy, fill: INK, 'font-size': 10, 'text-anchor': 'middle' },
@@ -160,14 +166,17 @@ function drawRadar(latest) {
     const [x, y] = vertex(cx, cy, radius, i, AGENTS.length);
     svg.appendChild(el('line', { x1: cx, y1: cy, x2: x, y2: y, stroke: LINE, 'stroke-width': 0.5 }));
 
-    const [lx, ly] = vertex(cx, cy, radius + 16, i, AGENTS.length);
+    // Centred over the vertex rather than pushed outward from it. An outward
+    // anchor needs a full label's width of clearance on each side; a centred
+    // one needs half, which is what lets the whole name fit.
+    const [lx, ly] = vertex(cx, cy, radius + 14, i, AGENTS.length);
     svg.appendChild(el('text', {
-      x: lx, y: ly + 3,
+      x: lx, y: ly + (ly > cy ? 6 : 0),
       fill: agent.color,
       'font-family': "'Press Start 2P', monospace",
       'font-size': 5.5,
-      'text-anchor': lx < cx - 2 ? 'end' : lx > cx + 2 ? 'start' : 'middle'
-    }, agent.name.toUpperCase().slice(0, 9)));
+      'text-anchor': 'middle'
+    }, agent.name.toUpperCase()));
   });
 
   if (!latest) {
@@ -199,7 +208,7 @@ function renderLegend(node, latest) {
     item.style.setProperty('--agent-color', agent.color);
     item.appendChild(el2('span', 'legend-dot'));
     const score = latest ? ((latest.scores[agent.id] ?? 0) / 10).toFixed(1) : '—';
-    item.appendChild(document.createTextNode(`${agent.name.slice(0, 7)} ${score}`));
+    item.appendChild(document.createTextNode(`${agent.name} ${score}`));
     return item;
   }));
 }

@@ -12,7 +12,13 @@
   --accent2:   #ff7f50;
   --text:      rgba(236, 247, 243, 0.92);
   --muted:     rgba(152, 181, 172, 0.85);
-  --faint:     rgba(152, 181, 172, 0.5);
+  /* Was 0.5, which measured 2.98:1 against the panel — under the 4.5:1 that
+     normal text needs to be legible, and this is the colour on the metric
+     labels, the section headings and the slider names, so most of the words in
+     the interface were sitting below it. 0.72 measures 4.8:1 and still reads
+     clearly quieter than --muted. Worth more here than on a laptop: this gets
+     projected in a room where the back row is ten metres from the screen. */
+  --faint:     rgba(152, 181, 172, 0.72);
   --panel:     rgba(10, 25, 23, 0.72);
   --panel-alt: rgba(8, 20, 19, 0.88);
 

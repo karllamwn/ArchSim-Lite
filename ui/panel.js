@@ -89,6 +89,7 @@ export function initPanel(container) {
     // for anywhere genuinely tight.
     const buttons = options.map(option => {
       const b = el('button', 'btn btn-small', option.label);
+      b.setAttribute('aria-pressed', 'false');
       b.onclick = () => setForm(state.selectedId, { [key]: option.id });
       row.appendChild(b);
       return { b, id: option.id };
@@ -105,12 +106,15 @@ export function initPanel(container) {
   for (const control of VOLUME_CONTROLS) {
     const row = el('div', 'control');
     const head = el('div', 'control-head');
-    head.appendChild(el('label', '', control.label));
+    const labelNode = el('label', '', control.label);
+    labelNode.htmlFor = `slider-${control.key}`;
+    head.appendChild(labelNode);
     const value = el('span', 'control-value');
     head.appendChild(value);
     row.appendChild(head);
 
     const input = el('input', 'slider');
+    input.id = `slider-${control.key}`;
     input.type = 'range';
     input.min = control.min;
     input.max = control.max;
@@ -149,11 +153,14 @@ export function initPanel(container) {
   const hourRow = el('div', 'control');
   hourRow.style.marginTop = '7px';
   const hourHead = el('div', 'control-head');
-  hourHead.appendChild(el('label', '', 'Time (solar)'));
+  const hourLabel = el('label', '', 'Time (solar)');
+  hourLabel.htmlFor = 'slider-hour';
+  hourHead.appendChild(hourLabel);
   const hourValue = el('span', 'control-value');
   hourHead.appendChild(hourValue);
   hourRow.appendChild(hourHead);
   const hourInput = el('input', 'slider');
+  hourInput.id = 'slider-hour';
   hourInput.type = 'range';
   hourInput.min = 4; hourInput.max = 20; hourInput.step = 0.25;
   hourInput.oninput = () => updateSun({ hour: Number(hourInput.value) });
@@ -180,7 +187,11 @@ export function initPanel(container) {
     const defaults = { base: 'rect', plan: 'solid', section: 'straight' };
     for (const { key, buttons } of pickers) {
       for (const { b, id } of buttons) {
-        b.classList.toggle('btn-on', (volume[key] ?? defaults[key]) === id);
+        const on = (volume[key] ?? defaults[key]) === id;
+        b.classList.toggle('btn-on', on);
+        // Said as well as shown. The fill colour is the only visual difference
+        // between chosen and not, which leaves out anyone reading by ear.
+        b.setAttribute('aria-pressed', String(on));
       }
     }
 

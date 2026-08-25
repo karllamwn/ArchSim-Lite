@@ -28,8 +28,8 @@
 <!-- ── Top bar: which mode, which round ─────────────────────────────────── -->
 <header class="topbar">
   <div class="mode-tabs">
-    <button class="mode-tab mode-tab-on" id="tabNegotiation">&#9673; NEGOTIATION</button>
-    <button class="mode-tab" id="tabSurveillance">&#9675; SURVEILLANCE</button>
+    <button class="mode-tab mode-tab-on" id="tabNegotiation" aria-pressed="true">&#9673; NEGOTIATION</button>
+    <button class="mode-tab" id="tabSurveillance" aria-pressed="false">&#9675; SURVEILLANCE</button>
   </div>
   <div class="round-label" id="roundChip">ROUND 0</div>
   <div class="topbar-right">
@@ -44,8 +44,11 @@
 
   <!-- ── 2. The design ──────────────────────────────────────────────────── -->
   <section class="col col-stage">
+    <!-- Both halves are set from view/viewport.js. "LATEST" used to be written
+         here, which meant reviewing round 1 announced itself as
+         "LATEST · ROUND 1 · REVIEW". -->
     <div class="stage-label">
-      LATEST &middot; <span id="stageView">SITE VIEW</span>
+      <span id="stageWhen">LATEST</span> &middot; <span id="stageView">SITE VIEW</span>
     </div>
     <div class="viewport" id="viewport"></div>
 
