@@ -106,7 +106,53 @@ export function initViewport(container) {
     matchCanvasToContainer();
     controls.update();
     renderer.render(scene, camera);
+    updateCompass();
   });
+}
+
+// ── Compass ──────────────────────────────────────────────────────────────────
+
+const NORTH = new THREE.Vector3(0, 0, -1);   // the site's north, in world axes
+const originNDC = new THREE.Vector3();
+const northNDC = new THREE.Vector3();
+
+let compassRose = null;
+let compassAngle = null;   // last angle written to the DOM, in degrees
+
+/**
+ * Point the needle at north as north actually appears on screen.
+ *
+ * A fixed arrow is worse than no arrow: orbit the model a quarter turn and it
+ * is confidently wrong. So the direction is measured rather than assumed —
+ * project the origin and a point one metre north of it through the same camera
+ * that drew the frame, and take the angle between them in screen pixels.
+ *
+ * Called every frame because OrbitControls has damping, so the camera keeps
+ * moving after the mouse stops. The DOM is only touched when the angle actually
+ * changes by something a person could see.
+ */
+function updateCompass() {
+  if (compassRose === null) {
+    compassRose = document.getElementById('compassRose') ?? false;
+  }
+  if (!compassRose) return;
+
+  originNDC.set(0, 0, 0).project(camera);
+  northNDC.copy(NORTH).project(camera);
+
+  // NDC is square, the canvas usually is not, so convert to pixels before
+  // taking the angle — otherwise the needle leans off by the aspect ratio.
+  const canvas = renderer.domElement;
+  const dx = (northNDC.x - originNDC.x) * canvas.width;
+  const dy = (northNDC.y - originNDC.y) * canvas.height;
+
+  // The needle is drawn pointing up. SVG rotates clockwise, and NDC y is up, so
+  // the clockwise angle from "up" to the north vector is atan2(dx, dy).
+  const degrees = Math.atan2(dx, dy) * 180 / Math.PI;
+
+  if (compassAngle !== null && Math.abs(degrees - compassAngle) < 0.25) return;
+  compassAngle = degrees;
+  compassRose.setAttribute('transform', `rotate(${degrees.toFixed(1)} 30 30)`);
 }
 
 /**

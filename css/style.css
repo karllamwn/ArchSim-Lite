@@ -141,10 +141,15 @@ body { overflow-x: auto; }
 /* North belongs in the label bar rather than as an arrow lying on the ground,
    where it competed with the shadow for attention. Kept short: at this size a
    sentence wraps to four lines and sits on top of the view. */
-/* A real compass, not a fixed glyph: the rose turns with the camera, so it
-   keeps pointing at world north however the view is orbited. The whole rose
-   turns, letter included, the way a north arrow on a site plan does.
-   Top right of the view, at a size you can read across a room. */
+/* A real compass, not a fixed glyph: the needle turns with the camera, so it
+   keeps pointing at world north however the view is orbited.
+   Top right of the view, at a size you can read across a room.
+
+   The rotation itself is a transform ATTRIBUTE written by updateCompass(), and
+   it carries its own centre — rotate(deg 30 30). Do not add transform-origin
+   here: in SVG2 the attribute is the same property, so the two compose, the
+   needle rotates about the corner as well as the centre, and it swings clean
+   out of the 60x60 viewBox. */
 .compass {
   position: absolute;
   top: 10px;
@@ -160,7 +165,6 @@ body { overflow-x: auto; }
   stroke-width: 1.5;
 }
 .compass-needle { fill: var(--accent2); }
-#compassRose { transform-origin: 30px 30px; }
 
 /* Reviewing a past round: say so plainly, because the sliders on the left still
    describe the live design and the two no longer agree. */
