@@ -34,13 +34,31 @@ export const environmentalAgent = {
     // These thresholds apply to the shadow THIS PROJECT ADDS, not to the total.
     // Part of the park is shaded by buildings that were there first, and that
     // is not something the design can answer for.
+    //
+    // They are read against the AVERAGE across the test times above, not the
+    // single worst moment. The worst moment is always Dec 21 noon, when the sun
+    // is 17 degrees up and the shadow is longer than the park whatever is
+    // built: 6, 8 and 10 storeys all measure 61.6%. Scored on that, the design
+    // makes no difference until it suddenly does, and the only way to move the
+    // number is to demolish the building — which is what this agent used to
+    // argue for. The average moves smoothly with the massing, so it is the one
+    // worth negotiating over. The worst case is still reported as evidence.
     acceptableShadowPercent: 20,   // no complaint below this
-    seriousShadowPercent: 35       // argue hard above this
+    seriousShadowPercent: 45,      // argue hard above this
+
+    // How far past the threshold this agent will let a design sit before it
+    // asks for another change. A shadow study is a model, not a measurement:
+    // insisting on 19.9% over 20.4% is arguing about the sampling grid. The
+    // band also stops the last rounds turning into one-floor haggling over a
+    // number nobody could defend to that precision.
+    tolerancePercent: 5
   },
 
   // ── GOAL ───────────────────────────────────────────────────────────────────
   goal: 'Keep the shadow this project adds to the park below 20% of its area at '
-      + 'every test time, and treat anything above 35% as a serious problem. '
+      + 'average across the test times, allowing 5 percentage points of '
+      + 'tolerance because a shadow study is a model, and treat anything above '
+      + '45% as serious. '
       + 'Judge the design on what it adds, not on shadow that would fall anyway.',
 
   canPropose: ['section', 'floors', 'z', 'd', 'rotation'],
@@ -78,7 +96,7 @@ export const environmentalAgent = {
   // threshold, zero once it passes the serious one, straight line between.
   satisfaction(result) {
     const kb = environmentalAgent.knowledge;
-    const added = result.worst ? result.worst.addedByDesignPercent : 0;
+    const added = result.worst ? result.averageAddedByDesignPercent : 0;
 
     if (added <= kb.acceptableShadowPercent) return 100;
     if (added >= kb.seriousShadowPercent) return 0;
@@ -122,9 +140,9 @@ export const environmentalAgent = {
     }
 
     if (topic === 'remedy') {
-      if (worst.addedByDesignPercent <= kb.acceptableShadowPercent) {
-        return `Nothing. ${worst.addedByDesignPercent}% is already under my `
-             + `${kb.acceptableShadowPercent}% limit.`;
+      if (result.averageAddedByDesignPercent <= kb.acceptableShadowPercent) {
+        return `Nothing. ${result.averageAddedByDesignPercent}% average is already under `
+             + `my ${kb.acceptableShadowPercent}% limit.`;
       }
       const tallest = state.volumes.reduce((a, b) =>
         (b.floors * b.floorHeight > a.floors * a.floorHeight ? b : a));
@@ -141,7 +159,7 @@ export const environmentalAgent = {
     const worst = result.worst;
     if (!worst) return null;
 
-    const added = worst.addedByDesignPercent;
+    const added = result.averageAddedByDesignPercent;
     const ally = others.find(o => o.wantsChange && o.parameter === 'floors');
     const planner = others.find(o => o.id === 'planner');
 
@@ -175,12 +193,23 @@ export const environmentalAgent = {
     const kb = environmentalAgent.knowledge;
     const worst = result.worst;
 
-    if (!worst || worst.addedByDesignPercent <= kb.acceptableShadowPercent) {
+    // Stop asking once the design is within tolerance, not once it is strictly
+    // under. The threshold is where this agent starts caring; the tolerance is
+    // how precisely it is willing to pretend the model knows the answer.
+    const settledAt = kb.acceptableShadowPercent + kb.tolerancePercent;
+    const added = result.averageAddedByDesignPercent;
+    if (!worst || added <= settledAt) {
+      const within = added > kb.acceptableShadowPercent;
       return {
-        argument: `No objection from me. The park is ${worst.shadowedPercent}% shaded at `
-                + `${worst.label}, but only ${worst.addedByDesignPercent}% of that is this `
-                + `project — the rest falls there anyway. Under my `
-                + `${kb.acceptableShadowPercent}% threshold.`,
+        argument: `No objection from me. Averaged across the test times this project adds `
+                + `${added}% shadow to the park; the worst single moment is ${worst.label} `
+                + `at ${worst.addedByDesignPercent}% ours out of ${worst.shadowedPercent}% `
+                + `shaded altogether. `
+                + (within
+                    ? `That is over my ${kb.acceptableShadowPercent}% threshold but inside `
+                    + `the ${kb.tolerancePercent}-point tolerance I allow, and I am not `
+                    + `going to argue a shadow model to that precision.`
+                    : `Under my ${kb.acceptableShadowPercent}% threshold.`),
         proposal: null
       };
     }
@@ -188,8 +217,7 @@ export const environmentalAgent = {
     const tallest = state.volumes.reduce(
       (a, b) => (b.floors * b.floorHeight > a.floors * a.floorHeight ? b : a)
     );
-    const severity = worst.addedByDesignPercent >= kb.seriousShadowPercent
-      ? 'serious' : 'over threshold';
+    const severity = added >= kb.seriousShadowPercent ? 'serious' : 'over threshold';
 
     // Ask for the form change before the floor count. Reshaping the upper part
     // of the building buys more shadow than cutting storeys does, and it costs
@@ -201,8 +229,8 @@ export const environmentalAgent = {
       return {
         argument: `This is ${severity}. At ${worst.label} the sun is only `
                 + `${worst.sunAltitude}° up and the park is ${worst.shadowedPercent}% shaded. `
-                + `${worst.existingPercent}% of that is the existing blocks, but `
-                + `${worst.addedByDesignPercent}% is ours, against a limit of `
+                + `${worst.existingPercent}% of that is the existing blocks. Averaged over `
+                + `every test time we add ${added}%, against a limit of `
                 + `${kb.acceptableShadowPercent}%. It is a straight extrusion, so every `
                 + `storey throws the same long shadow. Reshape it before you shrink it.`,
         proposal: {
@@ -217,8 +245,8 @@ export const environmentalAgent = {
 
     if (section === 'stepped') {
       return {
-        argument: `Better, but not enough. ${worst.addedByDesignPercent}% of the park is `
-                + `still ours at ${worst.label}, against ${kb.acceptableShadowPercent}%. `
+        argument: `Better, but not enough. We still add ${added}% on average, against `
+                + `${kb.acceptableShadowPercent}%. `
                 + `Stepping helps near the top; tapering the whole profile helps all the way up.`,
         proposal: {
           volumeId: tallest.id,
@@ -230,16 +258,17 @@ export const environmentalAgent = {
     }
 
     return {
-      argument: `Still ${severity}. At ${worst.label} the sun is only `
-              + `${worst.sunAltitude}° up and ${worst.addedByDesignPercent}% of the park is `
-              + `ours, against ${kb.acceptableShadowPercent}%. The section is already `
-              + `working, so what is left is height.`,
+      argument: `Still ${severity}. We add ${added}% on average, against `
+              + `${kb.acceptableShadowPercent}%; at ${worst.label} the sun is only `
+              + `${worst.sunAltitude}° up. The section is already working, so what is `
+              + `left is height.`,
       proposal: {
         volumeId: tallest.id,
         parameter: 'floors',
-        value: Math.max(1, tallest.floors - 2),
-        reason: `With the form doing what it can, two fewer floors is what still moves the `
-              + `winter shadow out of the park.`
+        value: Math.max(1, tallest.floors - 1),
+        reason: `With the form doing what it can, height is what is left. One storey at a `
+              + `time, so we find the point where the shadow clears rather than overshooting `
+              + `it and handing back area nobody needed to lose.`
       }
     };
   }

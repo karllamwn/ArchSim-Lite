@@ -37,7 +37,7 @@ export const communityAgent = {
         label: 'Shadow on the park',
         weight: 0.45,
         respondentsRaising: 168,
-        unit: '% of park newly shadowed by this project at the worst test time',
+        unit: '% of park newly shadowed by this project, averaged over the test times',
         comfortableUpTo: 15,
         unacceptableAbove: 45
       },
@@ -61,7 +61,12 @@ export const communityAgent = {
       }
     ],
 
-    satisfactionFloor: 60   // below this the agent argues rather than accepts
+    satisfactionFloor: 60,  // the score this agent is trying to reach
+
+    // How far below the floor it will still accept. A survey of 40 people has
+    // a margin of error far wider than this, so treating 58 as a defeat and 60
+    // as a victory would be reading precision into the data that is not there.
+    tolerance: 6
   },
 
   // ── GOAL ───────────────────────────────────────────────────────────────────
@@ -89,6 +94,19 @@ export const communityAgent = {
            + `${result.respondents} respondents (${result.disclaimer}). `
            + lines.join('; ') + `. Lowest: ${result.lowestConcern.label}.`;
     }
+  },
+
+  /**
+   * Is the design good enough to stop arguing about?
+   *
+   * The floor is what this agent wants; the tolerance is how much less it will
+   * settle for. Both branches of demo(), the remedy answer and the reply all
+   * read this one function, so the agent cannot accept in one sentence and
+   * object in the next.
+   */
+  accepts(result) {
+    const kb = communityAgent.knowledge;
+    return result.overallSatisfaction >= kb.satisfactionFloor - kb.tolerance;
   },
 
   // ── GOAL, AS A NUMBER ──────────────────────────────────────────────────────
@@ -122,16 +140,19 @@ export const communityAgent = {
     }
 
     if (topic === 'threshold') {
-      return `${kb.satisfactionFloor} out of 100 overall. Below that I argue. The weights `
+      return `${kb.satisfactionFloor} out of 100 overall, and I will settle for `
+           + `${kb.satisfactionFloor - kb.tolerance} — a survey of ${result.respondents} `
+           + `people cannot tell those two apart. Below that I argue. The weights `
            + `come from how many people raised each concern — shadow on the park carries `
            + `${result.concerns[0].weight}, and ${result.concerns[0].respondentsRaising} of `
            + `${result.respondents} raised it. Again: ${result.disclaimer}.`;
     }
 
     if (topic === 'remedy') {
-      if (result.overallSatisfaction >= kb.satisfactionFloor) {
-        return `Nothing needed. ${result.overallSatisfaction}/100 clears my floor of `
-             + `${kb.satisfactionFloor}.`;
+      if (communityAgent.accepts(result)) {
+        return `Nothing needed. ${result.overallSatisfaction}/100 against a floor of `
+             + `${kb.satisfactionFloor}, within the ${kb.tolerance} points I allow for a `
+             + `sample this size.`;
       }
       return `Work on ${lowest.label.toLowerCase()} and nothing else. It scores `
            + `${lowest.satisfaction}/100 and carries weight ${lowest.weight}, so it is `
@@ -146,7 +167,7 @@ export const communityAgent = {
     const kb = communityAgent.knowledge;
     const lowest = result.lowestConcern;
 
-    if (result.overallSatisfaction >= kb.satisfactionFloor) {
+    if (communityAgent.accepts(result)) {
       return `Nothing further from the survey. ${result.overallSatisfaction}/100 is `
            + `above my floor, and I would rather spend the goodwill on a later round.`;
     }
@@ -177,7 +198,7 @@ export const communityAgent = {
     const kb = communityAgent.knowledge;
     const lowest = result.lowestConcern;
 
-    if (result.overallSatisfaction >= kb.satisfactionFloor) {
+    if (communityAgent.accepts(result)) {
       return {
         argument: `The neighbourhood can live with this. Overall ${result.overallSatisfaction}/100 `
                 + `across ${result.respondents} respondents, my floor is ${kb.satisfactionFloor}. `
@@ -195,12 +216,17 @@ export const communityAgent = {
     // Bulk is a shape complaint before it is a size one: a courtyard reads as
     // less overbearing from the street than the same floor area as a slab, and
     // it keeps the area the architect is fighting for.
+    //
+    // One storey and a couple of metres at a time. A survey does not tell you
+    // how much to remove, only that people are unhappy, so the honest move is a
+    // small one repeated until the number turns — which is also what makes the
+    // negotiation legible as a negotiation rather than a single verdict.
     const proposalByConcern = {
-      parkShadow: { parameter: 'floors', value: Math.max(1, tallest.floors - 2) },
-      height:     { parameter: 'floors', value: Math.max(1, tallest.floors - 3) },
+      parkShadow: { parameter: 'floors', value: Math.max(1, tallest.floors - 1) },
+      height:     { parameter: 'floors', value: Math.max(1, tallest.floors - 1) },
       bulk: (tallest.plan ?? 'solid') === 'solid'
         ? { parameter: 'plan', value: 'courtyard' }
-        : { parameter: 'w', value: Math.max(6, tallest.w - 5) }
+        : { parameter: 'w', value: Math.max(6, tallest.w - 3) }
     };
     const move = proposalByConcern[lowest.id] ?? proposalByConcern.height;
 

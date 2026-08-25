@@ -28,7 +28,13 @@ export const sitePlannerAgent = {
     minSpacing: 8,                  // metres between two volumes, for light and air
     maxHeight: 40,                  // metres
     maxCoveragePercent: 45,         // footprint as a share of site area
-    minFloorplate: 200              // m², below this a floor plate is impractical
+    minFloorplate: 200,             // m², below this a floor plate is impractical
+
+    // Coverage only. The setback and spacing rules above are lines on a survey
+    // and get no tolerance at all — a building is either inside its setback or
+    // it is not. Coverage is a ratio computed from a sampled footprint, so
+    // holding it to a tenth of a percent would be false precision.
+    coverageTolerancePercent: 3
   },
 
   // ── GOAL ───────────────────────────────────────────────────────────────────
@@ -83,6 +89,9 @@ export const sitePlannerAgent = {
   // proportion to how far over it is.
   satisfaction(result) {
     let score = 100 - result.violationCount * 20;
+    // Scored against the real limit, with no tolerance. The score says how the
+    // design actually measures up; the tolerance below only decides whether
+    // this agent thinks it is worth another round of argument.
     if (result.exceedsMaxCoverage) {
       const over = result.siteCoveragePercent - result.maxCoveragePercent;
       score -= Math.min(30, over * 2);
@@ -222,7 +231,8 @@ export const sitePlannerAgent = {
       };
     }
 
-    if (result.exceedsMaxCoverage) {
+    // The tool reports the fact; the agent decides how much slack to give it.
+    if (result.siteCoveragePercent > kb.maxCoveragePercent + kb.coverageTolerancePercent) {
       const biggest = state.volumes.reduce((a, b) => (b.w * b.d > a.w * a.d ? b : a));
       return {
         argument: `Coverage is ${result.siteCoveragePercent}%, over my `
@@ -231,8 +241,10 @@ export const sitePlannerAgent = {
         proposal: {
           volumeId: biggest.id,
           parameter: 'w',
-          value: Math.max(6, biggest.w - 4),
-          reason: `Narrow volume ${biggest.id} to bring coverage back under the limit.`
+          value: Math.max(6, biggest.w - 2),
+          reason: `Narrow volume ${biggest.id} by 2 m. Small steps, so we stop at the limit `
+                + `rather than well under it — every metre off the plate is area the `
+                + `architect has to find somewhere else.`
         }
       };
     }

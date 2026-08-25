@@ -84,9 +84,11 @@ export function initPanel(container) {
     params.body.appendChild(el('div', 'metric-sub', title));
     const row = el('div', 'button-row pick');
     params.body.appendChild(row);
+    // One per row, so there is room for the real name rather than the four
+    // letters that fitted when these sat side by side. `short` is still there
+    // for anywhere genuinely tight.
     const buttons = options.map(option => {
-      const b = el('button', 'btn btn-small', option.short);
-      b.title = option.label;
+      const b = el('button', 'btn btn-small', option.label);
       b.onclick = () => setForm(state.selectedId, { [key]: option.id });
       row.appendChild(b);
       return { b, id: option.id };

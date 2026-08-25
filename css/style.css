@@ -318,15 +318,23 @@ body { overflow-x: auto; }
 
 .button-row { display: flex; flex-wrap: wrap; gap: 4px; }
 
-/* Four choices on one line. Equal widths rather than content widths, so the
-   row reads as one control and the eye can run along it; the full name is on
-   the tooltip and in every readout, so nothing is lost by shortening here. */
-.button-row.pick { flex-wrap: nowrap; }
+/* One choice per row, full width.
+   Taller than a row of abbreviations, and worth it: the names here are the
+   same ones the agents use in their proposals and in the decision log, so what
+   a student clicks and what they read back afterwards are the same words.
+   Left-aligned, because a column of centred text gives the eye no edge to run
+   down. */
+.button-row.pick {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 3px;
+}
 .button-row.pick .btn {
-  flex: 1 1 0;
-  min-width: 0;
-  padding: 4px 2px;
+  flex: 0 0 auto;
+  width: 100%;
+  padding: 4px 9px;
   font-size: 14px;
+  text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
 }

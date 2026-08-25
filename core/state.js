@@ -17,9 +17,18 @@ export const state = {
   // x, z  = centre of the footprint, metres from the site origin
   // w, d  = footprint width (east-west) and depth (north-south), metres
   // rotation = degrees clockwise, 0 = aligned with the site
+  // The opening design is deliberately ambitious: 41.6 m over a 40 m height
+  // limit, a broad plate, and sitting close to the park. Every agent has
+  // something to say about it, and none of them can fix it alone.
+  //
+  // This is a teaching decision, not a default. A tidy starting massing settles
+  // in two rounds — one reshape and it is over — and a student never sees the
+  // thing the workshop is about. From here it takes five, the mean satisfaction
+  // climbs 30, 70, 77, 82, 89, and it lands on nine storeys over a podium: a
+  // building somebody could actually draw, arrived at by argument.
   volumes: [
     {
-      id: 'A', x: 0, z: 8, w: 24, d: 16, rotation: 0, floors: 6, floorHeight: 3.2,
+      id: 'A', x: 0, z: 4, w: 34, d: 24, rotation: 0, floors: 13, floorHeight: 3.2,
 
       // Form, three independent axes. See core/form.js.
       base: 'rect',                           // the outline

@@ -28,9 +28,12 @@ export function surveyScore(state, shadowResult, survey) {
   // The measured value behind each concern, in the concern's own units.
   const measured = {
     // The community reacts to what the project adds, not to shadow the existing
-    // blocks already cast. Same basis as the environmental agent, so the two
-    // are arguing about the same number.
-    parkShadow: shadowResult.worst ? shadowResult.worst.addedByDesignPercent : 0,
+    // blocks already cast. Averaged across the test times, on the same basis as
+    // the environmental agent, so the two are arguing about the same number —
+    // and because the single worst moment is Dec 21 noon, where the shadow is
+    // longer than the park whatever is built and the figure barely moves with
+    // the design. People notice a park being dark often, not once.
+    parkShadow: shadowResult.worst ? shadowResult.averageAddedByDesignPercent : 0,
     height: round(tallest),
     bulk: round(coverage)
   };
