@@ -48,10 +48,16 @@ export const templateAgent = {
   // into someone else's discipline.
   //
   // Numbers:  x, z, w, d, rotation, floors, floorHeight
-  //           planRatio, topScale, podiumFloors, towerRatio,
+  //           voidRatio, chamfer, topScale, podiumFloors, towerRatio,
   //           setbackEvery, setbackDepth
-  // Choices:  plan     rect | ellipse | lshape | courtyard
+  // Choices:  base     rect | ellipse | circle | chamfered | diamond
+  //           plan     solid | courtyard | lshape | ushape
   //           section  straight | tapered | podium | stepped
+  //
+  // Base, plan and section are three independent axes, the same way the
+  // Grasshopper definition in V2 splits them: the outline, what is cut out
+  // of it, and how it changes going up. An elliptical base with a courtyard
+  // plan on a podium section is a legal combination, and a reasonable one.
   //
   // Worth taking a choice if your discipline cares about shape rather than
   // size. Switching the section from straight to podium cuts the shadow this

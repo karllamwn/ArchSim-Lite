@@ -198,7 +198,7 @@ export const communityAgent = {
     const proposalByConcern = {
       parkShadow: { parameter: 'floors', value: Math.max(1, tallest.floors - 2) },
       height:     { parameter: 'floors', value: Math.max(1, tallest.floors - 3) },
-      bulk: (tallest.plan ?? 'rect') === 'rect'
+      bulk: (tallest.plan ?? 'solid') === 'solid'
         ? { parameter: 'plan', value: 'courtyard' }
         : { parameter: 'w', value: Math.max(6, tallest.w - 5) }
     };

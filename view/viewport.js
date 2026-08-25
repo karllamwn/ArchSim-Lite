@@ -10,7 +10,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { state, subscribe, volumeHeight } from '../core/state.js';
 import { SITE, PARK, CONTEXT, buildableBounds } from '../core/site.js';
 import { sunVector, sunPosition } from './sun.js';
-import { volumeToSlabs } from '../core/form.js';
+import { volumeToSlabs, planOutlines } from '../core/form.js';
 
 // ── Colours, in one place so the palette is easy to change ───────────────────
 // Matched to the ArchSim V2 dark theme in css/style.css.
@@ -371,47 +371,18 @@ function updateVolumes(s) {
       edges.rotation.copy(mesh.rotation);
       volumeGroup.add(edges);
 
-      // A line at every floor level. Without them a massing is an abstract
-      // block; with them you can count the storeys the agents are arguing
-      // about, which is most of what makes it read as a building.
-      for (const floorLine of floorPlates(slab, volume.floorHeight, edgeMaterial)) {
-        floorLine.position.set(slab.x, slab.y0 + floorLine.userData.y, slab.z);
-        floorLine.rotation.y = -slab.rotation * Math.PI / 180;
-        volumeGroup.add(floorLine);
-      }
+      // No per-storey lines. They were drawn to make the massing countable, but
+      // on a concave plan the two inner walls of an L notch are seen almost
+      // edge-on, and eight rings of them pile into a cross-hatch that reads as a
+      // rendering fault. Storey count is on the slider and in the metrics panel;
+      // the model stays a clean massing study.
     }
   }
 }
 
-/**
- * One horizontal outline per floor within a slab, so the storeys are countable.
- * Reuses the same plan outline the solid is extruded from, which is why an
- * ellipse or a courtyard gets correct floor lines for free.
- */
-function floorPlates(slab, floorHeight, material) {
-  const lines = [];
-  const height = slab.y1 - slab.y0;
-
-  for (let y = floorHeight; y < height - 0.01; y += floorHeight) {
-    for (const outline of planOutlines(slab)) {
-      const geometry = new THREE.BufferGeometry().setFromPoints(
-        outline.map(p => new THREE.Vector3(p.x, 0, p.y))
-      );
-      const loop = new THREE.LineLoop(geometry, material);
-      loop.userData.y = y;
-      lines.push(loop);
-    }
-  }
-  return lines;
-}
-
-/** The plan outline(s) of a slab as point lists: the edge, plus any void. */
-function planOutlines(slab) {
-  const shape = planShape(slab);
-  const outlines = [shape.getPoints(slab.plan === 'ellipse' ? 48 : 12)];
-  for (const hole of shape.holes) outlines.push(hole.getPoints(12));
-  return outlines;
-}
+// The outline comes from core/form.js, traced off the same signed distance
+// field the shadow rays test and the area counts. Nothing here describes a
+// shape of its own.
 
 /**
  * Build one band as geometry, sitting on y = 0 so it can be positioned by its
@@ -429,48 +400,34 @@ function slabGeometry(slab) {
   return geometry;
 }
 
-/** The plan of a slab as a THREE.Shape. One place plan shape becomes geometry. */
+/**
+ * The plan of a slab as a THREE.Shape, traced from the same signed distance
+ * field the shadow rays test and the area counts.
+ *
+ * This is what makes an L-shape lose two facades and a U lose one: the notch is
+ * part of the OUTLINE, not a hole punched through the plate. Writing each shape
+ * by hand and adding the void as a hole was what wrapped a wall around open
+ * air. A courtyard still comes back as a hole, because it genuinely is one.
+ */
 function planShape(slab) {
-  const hw = slab.w / 2;
-  const hd = slab.d / 2;
-
+  const loops = planOutlines(slab);
   const shape = new THREE.Shape();
+  if (loops.length === 0) return shape;   // degenerate footprint
 
-  if (slab.plan === 'ellipse') {
-    shape.absellipse(0, 0, hw, hd, 0, Math.PI * 2, false, 0);
+  const outline = loops[0];
+  shape.moveTo(outline[0].x, outline[0].y);
+  for (const point of outline.slice(1)) shape.lineTo(point.x, point.y);
+  shape.closePath();
 
-  } else if (slab.plan === 'lshape') {
-    // A rectangle with one corner quadrant removed.
-    const cutW = slab.w * slab.planRatio;
-    const cutD = slab.d * slab.planRatio;
-    shape.moveTo(-hw, -hd);
-    shape.lineTo(hw, -hd);
-    shape.lineTo(hw, hd - cutD);
-    shape.lineTo(hw - cutW, hd - cutD);
-    shape.lineTo(hw - cutW, hd);
-    shape.lineTo(-hw, hd);
-    shape.closePath();
-
-  } else {
-    shape.moveTo(-hw, -hd);
-    shape.lineTo(hw, -hd);
-    shape.lineTo(hw, hd);
-    shape.lineTo(-hw, hd);
-    shape.closePath();
-
-    if (slab.plan === 'courtyard') {
-      const iw = hw * slab.planRatio;
-      const id = hd * slab.planRatio;
-      const hole = new THREE.Path();
-      hole.moveTo(-iw, -id);
-      hole.lineTo(-iw, id);
-      hole.lineTo(iw, id);
-      hole.lineTo(iw, -id);
-      hole.closePath();
-      shape.holes.push(hole);
-    }
+  // Anything else the trace found is enclosed: a courtyard, or a void a student
+  // has written that does not reach the edge.
+  for (const loop of loops.slice(1)) {
+    const hole = new THREE.Path();
+    hole.moveTo(loop[0].x, loop[0].y);
+    for (const point of loop.slice(1)) hole.lineTo(point.x, point.y);
+    hole.closePath();
+    shape.holes.push(hole);
   }
-
   return shape;
 }
 

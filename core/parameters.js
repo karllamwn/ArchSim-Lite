@@ -5,7 +5,7 @@
 // in one file means a new parameter appears everywhere at once, and an agent
 // can never propose a value the slider would not allow.
 
-import { PLAN_SHAPES, SECTION_TYPES } from './form.js';
+import { BASE_SHAPES, PLAN_TYPES, SECTION_TYPES } from './form.js';
 
 export const PARAMETERS = [
   { key: 'x',           label: 'East / west',   min: -30, max: 30, step: 0.5, unit: 'm' },
@@ -20,7 +20,8 @@ export const PARAMETERS = [
   // they belong to is selected — see PLAN_PARAMS and SECTION_PARAMS in
   // core/form.js — but an agent may propose any of them at any time, so the
   // bounds live here with everything else.
-  { key: 'planRatio',    label: 'Cut / void',    min: 0.2, max: 0.7, step: 0.05, unit: '' },
+  { key: 'voidRatio',    label: 'Void size',     min: 0.2, max: 0.7, step: 0.05, unit: '' },
+  { key: 'chamfer',      label: 'Chamfer',       min: 0.1, max: 0.6, step: 0.05, unit: '' },
   { key: 'topScale',     label: 'Top scale',     min: 0.35, max: 1,  step: 0.05, unit: '' },
   { key: 'podiumFloors', label: 'Podium floors', min: 1,   max: 8,   step: 1,    unit: '' },
   { key: 'towerRatio',   label: 'Tower ratio',   min: 0.3, max: 0.9, step: 0.05, unit: '' },
@@ -35,9 +36,14 @@ export const PARAMETERS = [
 // added park shadow further than losing two whole floors would.
 export const CHOICE_PARAMETERS = [
   {
+    key: 'base',
+    label: 'Base shape',
+    options: BASE_SHAPES.map(s => ({ value: s.id, label: s.label }))
+  },
+  {
     key: 'plan',
     label: 'Plan',
-    options: PLAN_SHAPES.map(s => ({ value: s.id, label: s.label }))
+    options: PLAN_TYPES.map(s => ({ value: s.id, label: s.label }))
   },
   {
     key: 'section',

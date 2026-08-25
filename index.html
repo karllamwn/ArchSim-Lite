@@ -46,9 +46,16 @@
   <section class="col col-stage">
     <div class="stage-label">
       LATEST &middot; <span id="stageView">SITE VIEW</span>
-      <span class="stage-north">&#9650; N</span>
     </div>
     <div class="viewport" id="viewport"></div>
+
+    <!-- Compass, top right of the view, where a site plan puts one. -->
+    <svg viewBox="0 0 60 60" class="compass" aria-label="north arrow">
+      <circle cx="30" cy="30" r="26" class="compass-ring"/>
+      <g id="compassRose">
+        <polygon points="30,6 38,40 30,33 22,40" class="compass-needle"/>
+      </g>
+    </svg>
     <div class="filmstrip" id="filmstrip"></div>
   </section>
 

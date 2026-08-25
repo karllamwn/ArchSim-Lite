@@ -21,10 +21,11 @@ export const state = {
     {
       id: 'A', x: 0, z: 8, w: 24, d: 16, rotation: 0, floors: 6, floorHeight: 3.2,
 
-      // Form. `plan` is the footprint seen from above, `section` is how that
-      // footprint changes going up. See core/form.js.
-      plan: 'rect', planRatio: 0.45,
-      section: 'straight',
+      // Form, three independent axes. See core/form.js.
+      base: 'rect',                           // the outline
+      plan: 'solid', voidRatio: 0.5,         // what is cut out of it
+      chamfer: 0.25,                          // chamfered base only
+      section: 'straight',                    // how it changes going up
       topScale: 0.6,                          // tapered
       podiumFloors: 2, towerRatio: 0.6,       // podium + tower
       setbackEvery: 4, setbackDepth: 2        // stepped
@@ -93,7 +94,9 @@ export function addVolume() {
 
   state.volumes.push({
     id, x: 0, z: -8, w: 18, d: 14, rotation: 0, floors: 4, floorHeight: 3.2,
-    plan: 'rect', planRatio: 0.45,
+    base: 'rect',
+    plan: 'solid', voidRatio: 0.5,
+    chamfer: 0.25,
     section: 'straight',
     topScale: 0.6,
     podiumFloors: 2, towerRatio: 0.6,

@@ -141,7 +141,26 @@ body { overflow-x: auto; }
 /* North belongs in the label bar rather than as an arrow lying on the ground,
    where it competed with the shadow for attention. Kept short: at this size a
    sentence wraps to four lines and sits on top of the view. */
-.stage-north { color: var(--accent2); }
+/* A real compass, not a fixed glyph: the rose turns with the camera, so it
+   keeps pointing at world north however the view is orbited. The whole rose
+   turns, letter included, the way a north arrow on a site plan does.
+   Top right of the view, at a size you can read across a room. */
+.compass {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 2;
+  width: 54px;
+  height: 54px;
+  pointer-events: none;
+}
+.compass-ring {
+  fill: rgba(13, 23, 22, 0.72);
+  stroke: rgba(255, 127, 80, 0.55);
+  stroke-width: 1.5;
+}
+.compass-needle { fill: var(--accent2); }
+#compassRose { transform-origin: 30px 30px; }
 
 /* Reviewing a past round: say so plainly, because the sliders on the left still
    describe the live design and the two no longer agree. */
