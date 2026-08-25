@@ -106,6 +106,7 @@ at it, or leave it out and your agent gets a coloured initial.
 index.html          the three-panel shell
 core/site.js        the fixed context: site, park, surrounding blocks
 core/state.js       the design world, and the only place it changes
+core/formPlan.js    the footprint, as one signed distance function
 core/parameters.js  what agents are allowed to argue about, and the legal range
 core/negotiation.js the round protocol
 core/history.js     per-round satisfaction scores, for the charts
@@ -116,7 +117,7 @@ api/gemini.js       the one place this project talks to a model
 view/sun.js         solar position (NOAA), pure maths
 view/viewport.js    the Three.js scene
 ui/office.js        the Multi-Agents Design Lab
-ui/charts.js        radar and convergence, hand-written SVG
+ui/deliverables.js  decision log, convergence graph and radar, hand-written SVG
 ui/                 panels
 ```
 
@@ -131,3 +132,13 @@ The full research prototype this is distilled from:
 [ArchSim](https://github.com/karllamwn/ArchSim), a multi-agent negotiation
 system for schematic design coupled to Grasshopper, Karamba3D and Ladybug.
 ArchSim Lite keeps the idea and drops the dependencies.
+
+---
+
+## License
+
+[MIT](LICENSE). Fork it, rewrite it, teach with it, publish what you build on
+it — just keep the copyright notice.
+
+The artwork in `assets/` (the Multi-Agents Design Lab and the three agent
+portraits) is the author's own and comes from the ArchSim thesis project.
